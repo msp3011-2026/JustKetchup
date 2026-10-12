@@ -26,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
 
   const city = inviter?.city ?? 'New York';
 
-  const [{ data: profile }, { data: neighborhoods }] = await Promise.all([
+  const [{ data: profile }, { data: cityHoods }] = await Promise.all([
     supabaseAdmin
       .from('contact_profiles')
       .select('neighborhood_id, dietary, cuisines')
@@ -35,13 +35,26 @@ export async function GET(_req: Request, { params }: { params: { token: string }
     supabaseAdmin.from('neighborhoods').select('id, name').eq('city', city).order('name'),
   ]);
 
+  // The user's city is free text ("nyc", "New York", "New York City"), so an exact
+  // match can easily miss and leave the picker empty with no visible error. This is
+  // a single-city app for now, so falling back to every neighborhood is both correct
+  // and far better than showing Sarah an empty dropdown.
+  let neighborhoods = cityHoods ?? [];
+  if (neighborhoods.length === 0) {
+    const { data: allHoods } = await supabaseAdmin
+      .from('neighborhoods')
+      .select('id, name')
+      .order('name');
+    neighborhoods = allHoods ?? [];
+  }
+
   return NextResponse.json({
     status: invite.status,
     inviterName: (inviter?.name ?? 'Your friend').split(' ')[0],
     contactName: (contact?.name ?? '').split(' ')[0],
     city,
     slots: invite.slots ?? [],
-    neighborhoods: neighborhoods ?? [],
+    neighborhoods,
     // Returned so Sarah sees her previous answers prefilled and can change them,
     // rather than being asked the same questions on every invite.
     savedProfile: profile ?? null,
