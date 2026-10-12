@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
 
   const { data: invite, error } = await supabaseAdmin
     .from('invites')
-    .select('id, token, status, slots, chosen_slot, chosen_venue_id, expires_at, user_id, contact_id')
+    .select('id, token, status, slots, chosen_slot, chosen_place_id, expires_at, user_id, contact_id')
     .eq('token', token)
     .maybeSingle();
 
