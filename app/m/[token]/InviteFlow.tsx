@@ -197,24 +197,21 @@ export default function InviteFlow({ token }: { token: string }) {
         <>
           <p style={s.kicker}>JustKetchup</p>
           <h1 style={s.h1}>
-            {contactName ? `Hi ${contactName}! ` : 'Hi! '}{inviterName} would love to see you.
+            {contactName ? `Hi ${contactName}! ` : 'Hi! '}You and {inviterName} are overdue a
+            ketchup.
           </h1>
           <p style={s.body}>
-            It&apos;s been a while, and {inviterName} wants to properly catch up — not a quick
-            text, an actual sit-down. Pick a time that suits you and somewhere you&apos;d like
-            to go, and we&apos;ll sort out the rest.
+            Pick a time that works and somewhere good to eat. That&apos;s the whole job.
           </p>
-          <p style={s.body}>Takes about thirty seconds.</p>
-          <button style={s.btn} onClick={start}>Let&apos;s do it</button>
+          <button style={s.btn} onClick={start}>Let&apos;s ketchup</button>
         </>
       )}
 
       {step === 'details' && (
         <>
-          <h2 style={s.h2}>Where are you these days?</h2>
+          <h2 style={s.h2}>Whereabouts are you these days?</h2>
           <p style={s.body}>
-            So we can suggest somewhere roughly midway between you both, rather than making one
-            of you trek across town.
+            So we can land on somewhere in the middle, instead of one of you trekking across town.
           </p>
           <select style={s.select} value={hoodId} onChange={(e) => setHoodId(e.target.value)}>
             <option value="">Choose your neighborhood…</option>
@@ -228,7 +225,7 @@ export default function InviteFlow({ token }: { token: string }) {
             ))}
           </div>
 
-          <h3 style={s.h3}>Anything you particularly fancy?</h3>
+          <h3 style={s.h3}>Anything you&apos;re in the mood for?</h3>
           <div style={s.chips}>
             {CUISINES.map((c) => (
               <Chip key={c.v} on={cuisines.includes(c.v)} onClick={() => toggle(cuisines, setCuisines, c.v)}>{c.label}</Chip>
@@ -247,8 +244,8 @@ export default function InviteFlow({ token }: { token: string }) {
 
       {step === 'time' && (
         <>
-          <h2 style={s.h2}>When works for you?</h2>
-          <p style={s.body}>These are the times {inviterName} is free.</p>
+          <h2 style={s.h2}>When suits you?</h2>
+          <p style={s.body}>{inviterName} is free at these times.</p>
 
           {summary && (
             <div style={s.summary}>
@@ -266,18 +263,18 @@ export default function InviteFlow({ token }: { token: string }) {
               </button>
             );
           })}
-          {busy && <p style={s.muted}>Finding places you&apos;ll both like…</p>}
+          {busy && <p style={s.muted}>Finding somewhere good…</p>}
           {err && <p style={s.error}>{err}</p>}
-          <p style={s.fine}>None of these work? Reply to {inviterName}&apos;s message and say so.</p>
+          <p style={s.fine}>None of these work? Just reply to {inviterName}&apos;s text.</p>
         </>
       )}
 
       {step === 'place' && (
         <>
-          <h2 style={s.h2}>Where would you like to go?</h2>
+          <h2 style={s.h2}>Where to?</h2>
           <p style={s.body}>
-            Well-reviewed spots roughly between you and {inviterName}
-            {dietary.length > 0 && ', that work with what you eat'}.
+            All well reviewed, all roughly in the middle
+            {dietary.length > 0 && ', and all sorted for what you eat'}.
           </p>
           {places.map((p) => (
             <button key={p.id} style={s.option} disabled={busy} onClick={() => confirm(p)}>
@@ -291,8 +288,8 @@ export default function InviteFlow({ token }: { token: string }) {
           ))}
           {places.length === 0 && (
             <>
-              <p style={s.muted}>Nothing matched all your filters nearby.</p>
-              <button style={s.btnGhost} onClick={() => setStep('details')}>Try fewer filters</button>
+              <p style={s.muted}>Nothing matched everything at once.</p>
+              <button style={s.btnGhost} onClick={() => setStep('details')}>Loosen the filters</button>
             </>
           )}
           {err && <p style={s.error}>{err}</p>}
@@ -301,10 +298,12 @@ export default function InviteFlow({ token }: { token: string }) {
 
       {step === 'done' && slot && place && (
         <>
-          <p style={s.kicker}>You&apos;re all set</p>
-          <h1 style={s.h1}>See you at {place.name}.</h1>
+          <p style={s.kicker}>Sorted</p>
+          <h1 style={s.h1}>
+            {place.name}, {fmtSlot(slot.start).day}.
+          </h1>
           <p style={s.body}>
-            {fmtSlot(slot.start).day} at {fmtSlot(slot.start).time}. We&apos;ve let {inviterName} know.
+            {fmtSlot(slot.start).time}. {inviterName} has been told.
           </p>
           <p style={s.muted}>{place.address}</p>
           <button style={s.btn} onClick={downloadIcs}>Add to my calendar</button>
@@ -313,7 +312,7 @@ export default function InviteFlow({ token }: { token: string }) {
               View on Google Maps
             </a>
           )}
-          <p style={s.fine}>Have a lovely time.</p>
+          <p style={s.fine}>Have a good one.</p>
         </>
       )}
     </Shell>
