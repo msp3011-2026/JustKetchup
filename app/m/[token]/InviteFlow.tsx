@@ -22,6 +22,8 @@ const DIETARY = [
 ];
 
 const CUISINES = [
+  { v: 'brunch', label: 'Brunch' },
+  { v: 'breakfast', label: 'Breakfast' },
   { v: 'italian', label: 'Italian' },
   { v: 'japanese', label: 'Japanese' },
   { v: 'indian', label: 'Indian' },
@@ -81,6 +83,9 @@ export default function InviteFlow({ token }: { token: string }) {
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [slot, setSlot] = useState<Slot | null>(null);
+  // Set the instant a slot is tapped, so the button highlights immediately
+  // instead of looking dead while the Places lookup runs.
+  const [pendingSlot, setPendingSlot] = useState<Slot | null>(null);
   const [place, setPlace] = useState<Place | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -130,6 +135,7 @@ export default function InviteFlow({ token }: { token: string }) {
   }
 
   async function loadPlaces(next: Slot) {
+    setPendingSlot(next);
     setBusy(true);
     setErr(null);
     try {
@@ -138,14 +144,20 @@ export default function InviteFlow({ token }: { token: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ neighborhoodId: hoodId, dietary, cuisines }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setErr("We couldn't load suggestions just now. Please try again in a moment.");
+        // Surface the real reason. A generic "try again" hides whether this is a
+        // missing API key, a bad neighborhood, or genuinely no matches.
+        setErr(d.detail ? `${d.error}: ${d.detail}` : (d.error ?? `HTTP ${r.status}`));
+        setPendingSlot(null);
         return;
       }
       setPlaces(d.venues ?? []);
       setSlot(next);
       setStep('place');
+    } catch (e: any) {
+      setErr(String(e?.message ?? e));
+      setPendingSlot(null);
     } finally {
       setBusy(false);
     }
@@ -227,6 +239,11 @@ export default function InviteFlow({ token }: { token: string }) {
 
           <h3 style={s.h3}>Anything you&apos;re in the mood for?</h3>
           <div style={s.chips}>
+            {/* No cuisine selected IS "anything" — so this chip just clears the rest,
+                rather than being a separate state that has to be kept in sync. */}
+            <Chip on={cuisines.length === 0} onClick={() => setCuisines([])}>
+              I don&apos;t mind
+            </Chip>
             {CUISINES.map((c) => (
               <Chip key={c.v} on={cuisines.includes(c.v)} onClick={() => toggle(cuisines, setCuisines, c.v)}>{c.label}</Chip>
             ))}
@@ -256,14 +273,25 @@ export default function InviteFlow({ token }: { token: string }) {
 
           {slots.map((sl) => {
             const f = fmtSlot(sl.start);
+            const chosen = pendingSlot?.start === sl.start;
             return (
-              <button key={sl.start} style={s.option} disabled={busy} onClick={() => loadPlaces(sl)}>
+              <button
+                key={sl.start}
+                style={{
+                  ...s.option,
+                  ...(chosen ? s.optionChosen : {}),
+                  opacity: busy && !chosen ? 0.4 : 1,
+                }}
+                disabled={busy}
+                onClick={() => loadPlaces(sl)}
+              >
                 <span style={s.optionMain}>{f.day}</span>
-                <span style={s.optionSub}>{f.time}</span>
+                <span style={chosen && busy ? s.optionSubActive : s.optionSub}>
+                  {chosen && busy ? 'Finding somewhere good…' : f.time}
+                </span>
               </button>
             );
           })}
-          {busy && <p style={s.muted}>Finding somewhere good…</p>}
           {err && <p style={s.error}>{err}</p>}
           <p style={s.fine}>None of these work? Just reply to {inviterName}&apos;s text.</p>
         </>
@@ -352,8 +380,10 @@ const s: Record<string, React.CSSProperties> = {
   chips: { display: 'flex', flexWrap: 'wrap', gap: 8 },
   chip: { padding: '9px 14px', borderRadius: 999, border: '1px solid', fontSize: 14, cursor: 'pointer' },
   option: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', textAlign: 'left', padding: '14px 16px', marginBottom: 10, borderRadius: 12, border: '1px solid #E7E5E4', background: '#fff', cursor: 'pointer' },
+  optionChosen: { borderColor: '#EA580C', borderWidth: 2, background: '#FFF7ED' },
   optionMain: { fontSize: 16, fontWeight: 600, color: '#1C1917' },
   optionSub: { fontSize: 13, color: '#78716C', marginTop: 3 },
+  optionSubActive: { fontSize: 13, color: '#EA580C', fontWeight: 600, marginTop: 3 },
   optionAddr: { fontSize: 12, color: '#A8A29E', marginTop: 4 },
   btn: { width: '100%', padding: '15px', fontSize: 16, fontWeight: 600, color: '#fff', background: '#EA580C', border: 'none', borderRadius: 12, cursor: 'pointer', marginTop: 20 },
   btnGhost: { display: 'block', width: '100%', padding: '14px', fontSize: 15, fontWeight: 600, color: '#57534E', background: 'transparent', border: 'none', cursor: 'pointer', marginTop: 8, textAlign: 'center', textDecoration: 'none' },
