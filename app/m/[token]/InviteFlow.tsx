@@ -82,6 +82,7 @@ export default function InviteFlow({ token }: { token: string }) {
   const [known, setKnown] = useState(false);
 
   const [places, setPlaces] = useState<Place[]>([]);
+  const [debug, setDebug] = useState<{ fetched: number; qualifying: number } | null>(null);
   const [slot, setSlot] = useState<Slot | null>(null);
   // Set the instant a slot is tapped, so the button highlights immediately
   // instead of looking dead while the Places lookup runs.
@@ -153,6 +154,7 @@ export default function InviteFlow({ token }: { token: string }) {
         return;
       }
       setPlaces(d.venues ?? []);
+      setDebug(d.debug ?? null);
       setSlot(next);
       setStep('place');
     } catch (e: any) {
@@ -317,6 +319,12 @@ export default function InviteFlow({ token }: { token: string }) {
           {places.length === 0 && (
             <>
               <p style={s.muted}>Nothing matched everything at once.</p>
+              {debug && (
+                <p style={s.fine}>
+                  Searched {debug.fetched} place{debug.fetched === 1 ? '' : 's'} nearby,{' '}
+                  {debug.qualifying} met the bar.
+                </p>
+              )}
               <button style={s.btnGhost} onClick={() => setStep('details')}>Loosen the filters</button>
             </>
           )}
