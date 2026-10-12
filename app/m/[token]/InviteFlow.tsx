@@ -90,11 +90,15 @@ export default function InviteFlow({ token }: { token: string }) {
         const r = await fetch(`/api/invite/${token}`);
         const d = await r.json();
         if (!r.ok) {
-          setErr(
-            d.error === 'expired'
-              ? 'This invite has expired — ask your friend to send a new one.'
-              : "We couldn't find this invite. Check the link and try again."
-          );
+          // Show the real reason. Collapsing every failure into "couldn't find
+          // this invite" hides server errors and makes debugging guesswork.
+          if (d.error === 'expired') {
+            setErr('This invite has expired — ask your friend to send a new one.');
+          } else if (d.error === 'not_found') {
+            setErr("We couldn't find this invite. Check the link and try again.");
+          } else {
+            setErr(`Something went wrong: ${d.error ?? `HTTP ${r.status}`}`);
+          }
           return;
         }
         setInviterName(d.inviterName);
