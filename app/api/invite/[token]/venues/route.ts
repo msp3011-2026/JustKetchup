@@ -84,9 +84,6 @@ export async function POST(req: Request, { params }: { params: { token: string }
       );
     }
 
-    // Counts travel with the response so an empty list is explainable:
-    // fetched 0 means Google gave us nothing, fetched 40 / qualifying 0 means
-    // the filters are too strict for this area.
     return NextResponse.json({
       venues: spots,
       debug: { fetched: result.fetched, qualifying: result.qualifying },
