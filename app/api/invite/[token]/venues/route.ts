@@ -58,11 +58,12 @@ export async function POST(req: Request, { params }: { params: { token: string }
   const inviterHood = hoods?.find((h) => h.id === inviter?.neighborhood_id) ?? sarahHood;
 
   try {
-    const spots = await findSpots(
+    const result = await findSpots(
       { lat: inviterHood.lat, lng: inviterHood.lng },
       { lat: sarahHood.lat, lng: sarahHood.lng },
       { dietary, cuisines, limit: 3 }
     );
+    const spots = result.places;
 
     // Cache so a reload or a second look doesn't bill another Places call.
     if (spots.length > 0) {
@@ -83,7 +84,13 @@ export async function POST(req: Request, { params }: { params: { token: string }
       );
     }
 
-    return NextResponse.json({ venues: spots });
+    // Counts travel with the response so an empty list is explainable:
+    // fetched 0 means Google gave us nothing, fetched 40 / qualifying 0 means
+    // the filters are too strict for this area.
+    return NextResponse.json({
+      venues: spots,
+      debug: { fetched: result.fetched, qualifying: result.qualifying },
+    });
   } catch (e: any) {
     return NextResponse.json(
       { error: 'places_failed', detail: String(e?.message ?? e).slice(0, 200) },
