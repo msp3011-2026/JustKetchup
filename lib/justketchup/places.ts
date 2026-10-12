@@ -168,7 +168,7 @@ export async function findSpots(
     }
     for (const p of batch) seen.set(p.id, p);
 
-    const qualifying = [...seen.values()].filter(
+    const qualifying = Array.from(seen.values()).filter(
       (p) =>
         p.rating >= MIN_RATING &&
         p.reviews >= MIN_REVIEWS &&
@@ -177,7 +177,7 @@ export async function findSpots(
     if (qualifying.length >= limit) break;
   }
 
-  let pool = [...seen.values()].filter(
+  let pool = Array.from(seen.values()).filter(
     (p) =>
       p.rating >= MIN_RATING &&
       p.reviews >= MIN_REVIEWS &&
@@ -187,7 +187,7 @@ export async function findSpots(
   // If strict criteria leave nothing, relax review count before rating —
   // a 4.7 with 300 reviews is a better suggestion than a 4.2 with 2000.
   if (pool.length === 0) {
-    pool = [...seen.values()].filter(
+    pool = Array.from(seen.values()).filter(
       (p) => p.rating >= MIN_RATING && (p.priceLevel === null || AFFORDABLE.has(p.priceLevel))
     );
   }
