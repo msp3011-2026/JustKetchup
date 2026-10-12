@@ -31,6 +31,8 @@ const MIN_REVIEWS = 500;
 const AFFORDABLE = new Set(['PRICE_LEVEL_INEXPENSIVE', 'PRICE_LEVEL_MODERATE']);
 
 const CUISINE_TYPES: Record<string, string> = {
+  brunch: 'brunch_restaurant',
+  breakfast: 'breakfast_restaurant',
   italian: 'italian_restaurant',
   japanese: 'japanese_restaurant',
   indian: 'indian_restaurant',
