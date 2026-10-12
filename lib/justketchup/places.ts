@@ -137,11 +137,19 @@ async function nearby(centre: Coords, radiusM: number, includedTypes: string[]):
  * Cuisine is used to pick which Google types we ask for, then to rank.
  * The radius widens if strict filtering leaves too little to choose from.
  */
+export type SpotResult = {
+  places: Place[];
+  /** How many distinct places Google returned before any filtering. */
+  fetched: number;
+  /** How many survived the rating / reviews / price filters. */
+  qualifying: number;
+};
+
 export async function findSpots(
   a: Coords,
   b: Coords,
   opts: { dietary?: string[]; cuisines?: string[]; limit?: number } = {}
-): Promise<Place[]> {
+): Promise<SpotResult> {
   const dietary = opts.dietary ?? [];
   const cuisines = opts.cuisines ?? [];
   const limit = opts.limit ?? 3;
@@ -216,5 +224,10 @@ export async function findSpots(
   });
 
   scored.sort((x, y) => x.score - y.score);
-  return scored.slice(0, limit).map((x) => x.p);
+
+  return {
+    places: scored.slice(0, limit).map((x) => x.p),
+    fetched: seen.size,
+    qualifying: pool.length,
+  };
 }
