@@ -137,11 +137,19 @@ async function nearby(centre: Coords, radiusM: number, includedTypes: string[]):
  * Cuisine is used to pick which Google types we ask for, then to rank.
  * The radius widens if strict filtering leaves too little to choose from.
  */
+export type SpotResult = {
+  places: Place[];
+  /** How many distinct places Google returned before any filtering. */
+  fetched: number;
+  /** How many survived the rating / reviews / price filters. */
+  qualifying: number;
+};
+
 export async function findSpots(
   a: Coords,
   b: Coords,
   opts: { dietary?: string[]; cuisines?: string[]; limit?: number } = {}
-): Promise<Place[]> {
+): Promise<SpotResult> {
   const dietary = opts.dietary ?? [];
   const cuisines = opts.cuisines ?? [];
   const limit = opts.limit ?? 3;
@@ -160,12 +168,16 @@ export async function findSpots(
 
   const seen = new Map<string, Place>();
 
-  for (const radius of [1500, 3000, 5000]) {
+  const RADII = [1500, 3000, 5000];
+  for (let i = 0; i < RADII.length; i++) {
     let batch: Place[] = [];
     try {
-      batch = await nearby(centre, radius, includedTypes);
-    } catch {
-      // Widening is best-effort; a failed wider pass shouldn't lose earlier hits.
+      batch = await nearby(centre, RADII[i], includedTypes);
+    } catch (e) {
+      // The FIRST call failing means the request itself is broken — bad key,
+      // API not enabled, billing off. That must surface, not masquerade as
+      // "no restaurants nearby". Widening afterwards is best-effort.
+      if (i === 0) throw e;
       break;
     }
     for (const p of batch) seen.set(p.id, p);
@@ -212,5 +224,10 @@ export async function findSpots(
   });
 
   scored.sort((x, y) => x.score - y.score);
-  return scored.slice(0, limit).map((x) => x.p);
+
+  return {
+    places: scored.slice(0, limit).map((x) => x.p),
+    fetched: seen.size,
+    qualifying: pool.length,
+  };
 }
