@@ -55,16 +55,16 @@ function fmtSlot(iso: string) {
 }
 
 // Opens ChatGPT with the booking request already written and sent. The person
-// finishes it in their own ChatGPT (signed in, with the OpenTable app), so the
+// finishes it in their own ChatGPT (signed in; ChatGPT books through Resy and OpenTable), so the
 // booking is theirs; JustKetchup never books on anyone's behalf.
 function chatgptBookingUrl(place: Place, slot: Slot) {
   const d = new Date(slot.start);
   const day = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
   const prompt =
-    `Use OpenTable to book a table for 2 at ${place.name}` +
+    `Book a table for 2 at ${place.name}` +
     (place.address ? ` (${place.address})` : '') +
-    ` on ${day} at ${time}. If that time isn't available, show me the closest times.`;
+    ` on ${day} at ${time}, using Resy or OpenTable, whichever the restaurant is on. If that time isn't available, show me the closest times.`;
   return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
 }
 
