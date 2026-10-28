@@ -394,9 +394,9 @@ export default function InviteFlow({ token }: { token: string }) {
               Book it with ChatGPT
             </a>
           )}
-          {place.mapsUri && (
+          {place.mapsUri && !place.reservable && (
             <a style={s.btnGhost} href={place.mapsUri} target="_blank" rel="noreferrer">
-              {place.reservable ? 'Reserve a table on Google Maps' : 'View on Google Maps'}
+              View on Google Maps
             </a>
           )}
           <button style={{ ...s.editLink, display: 'block', margin: '20px auto 0', fontSize: 14 }} onClick={() => { setPlace(null); setStep('time'); }}>
