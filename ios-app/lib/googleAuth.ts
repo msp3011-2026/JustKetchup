@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
-import { api } from './api';
+import { api, API_URL } from './api';
 
 // Google sign-in that also grants Google Calendar access. `access_type=offline`
 // and `prompt=consent` make Google return a refresh token, which we hand to the
@@ -15,7 +15,13 @@ const CALENDAR_SCOPES = [
 export async function signInWithGoogle(): Promise<boolean> {
   // Resolves to justketchup://auth-callback in a build, and to the Expo Go
   // proxy URL while developing. Both must be in Supabase's redirect list.
-  const redirectTo = Linking.createURL('auth-callback');
+  const appReturn = Linking.createURL('auth-callback');
+  // Supabase won't return to Expo Go's exp:// address directly, so in Expo Go
+  // the sign-in goes back via an https hand-off page that forwards it here.
+  // A real build uses justketchup://auth-callback, which Supabase accepts.
+  const redirectTo = appReturn.startsWith('exp://')
+    ? `${API_URL}/auth/app?to=${encodeURIComponent(appReturn)}`
+    : appReturn;
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -29,7 +35,7 @@ export async function signInWithGoogle(): Promise<boolean> {
   if (error) throw error;
   if (!data?.url) throw new Error('Supabase did not return a sign-in URL.');
 
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  const result = await WebBrowser.openAuthSessionAsync(data.url, appReturn);
   if (result.type !== 'success') return false;
 
   const [, fragment] = result.url.split('#');
