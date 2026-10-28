@@ -60,3 +60,27 @@ export function removeBusy(slots: Interval[], busy: Interval[], bufferMin = 30):
     return !busy.some((x) => new Date(x.start).getTime() < b && new Date(x.end).getTime() > a);
   });
 }
+
+/**
+ * This week and next week as calendar weeks (Monday to Sunday) in the user's
+ * time zone. `start` is Monday 00:00 of this week; `end` is the Monday after
+ * next. `firstDay` is the date (YYYY-MM-DD) of this week's Monday.
+ */
+export function twoWeekWindow(tz: string, now = Date.now()) {
+  const today = localDate(now, tz);
+  const order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const sinceMonday = order.indexOf(today.weekday);
+  const monday = new Date(Date.UTC(today.y, today.m, today.d - sinceMonday));
+  const next2 = new Date(Date.UTC(today.y, today.m, today.d - sinceMonday + 14));
+  const start = zonedTime(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate(), 0, 0, tz);
+  const end = zonedTime(next2.getUTCFullYear(), next2.getUTCMonth(), next2.getUTCDate(), 0, 0, tz);
+  // Suggestions run from tomorrow to the end of next week.
+  const daysLeft = 14 - sinceMonday - 1;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+    firstDay: `${monday.getUTCFullYear()}-${pad(monday.getUTCMonth() + 1)}-${pad(monday.getUTCDate())}`,
+    suggestionDays: daysLeft,
+  };
+}

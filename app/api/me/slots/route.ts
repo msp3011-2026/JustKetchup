@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/justketchup/supabaseAdmin';
 import { userIdFromRequest } from '@/lib/justketchup/auth';
 import { accessTokenForUser, busyTimes, listEvents, type CalEvent, type Interval } from '@/lib/justketchup/google';
-import { candidateSlots, removeBusy } from '@/lib/justketchup/slots';
+import { candidateSlots, removeBusy, twoWeekWindow } from '@/lib/justketchup/slots';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,9 +27,12 @@ export async function GET(req: Request) {
   const { data: user } = await supabaseAdmin.from('users').select('timezone').eq('id', userId).maybeSingle();
   const tz = user?.timezone || 'America/New_York';
 
-  const candidates = candidateSlots(tz);
-  const timeMin = candidates[0]?.start;
-  const timeMax = candidates[candidates.length - 1]?.end;
+  // This week and next, Monday to Sunday. Events cover the whole two weeks;
+  // suggestions run from tomorrow.
+  const win = twoWeekWindow(tz);
+  const candidates = candidateSlots(tz, Date.now(), win.suggestionDays);
+  const timeMin = win.start;
+  const timeMax = win.end;
 
   // --- You -------------------------------------------------------------
   let accessToken: string | null = null;
@@ -48,7 +51,11 @@ export async function GET(req: Request) {
         busyTimes(accessToken, timeMin, timeMax),
         listEvents(accessToken, timeMin, timeMax),
       ]);
-      slots = removeBusy(candidates, busy);
+      // Google's free/busy skips events marked 'Show as: Free' and invites you
+      // haven't accepted. If it's on your calendar (and not declined), it blocks.
+      const soft = evs.filter((e) => e.softBusy && !e.allDay).map((e) => ({ start: e.start, end: e.end }));
+      if (soft.length) console.info('[slots] counting', soft.length, 'free/unaccepted events as busy');
+      slots = removeBusy(candidates, busy.concat(soft));
       events = evs;
     } catch (e: any) {
       return NextResponse.json({ error: String(e?.message ?? e) }, { status: 502 });
@@ -93,6 +100,7 @@ export async function GET(req: Request) {
     connected: Boolean(accessToken),
     error: tokenError ?? undefined,
     timezone: tz,
+    firstDay: win.firstDay,
     slots,
     events,
     friend,

@@ -11,6 +11,8 @@ type Props = {
   picked: string[];
   onToggle: (start: string) => void;
   friendName: string;
+  /** Monday of this week, YYYY-MM-DD, from the server (user's time zone). */
+  firstDay?: string;
 };
 
 function dayKey(d: Date) {
@@ -44,16 +46,30 @@ function eventDays(e: CalEvent): string[] {
  * and the suggested free times you can tick, in time order. Seeing the whole
  * week makes it easier to judge which evenings you'd actually want to give up.
  */
-export default function WeekView({ slots, events, picked, onToggle, friendName }: Props) {
+export default function WeekView({ slots, events, picked, onToggle, friendName, firstDay }: Props) {
   const [week, setWeek] = useState(0);
 
+  // Calendar weeks, Monday to Sunday: this week and next.
   const days = useMemo(() => {
-    const today = new Date();
+    let monday: Date;
+    if (firstDay) {
+      const [y, m, d] = firstDay.split('-').map(Number);
+      monday = new Date(y, m - 1, d);
+    } else {
+      const t = new Date();
+      monday = new Date(t.getFullYear(), t.getMonth(), t.getDate() - ((t.getDay() + 6) % 7));
+    }
     return Array.from(
       { length: 14 },
-      (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1 + i)
+      (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i)
     );
-  }, []);
+  }, [firstDay]);
+
+  const todayKey = dayKey(new Date());
+  const todayStart = (() => {
+    const t = new Date();
+    return new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+  })();
 
   const byDay = useMemo(() => {
     const map: Record<string, { allDay: CalEvent[]; items: ({ kind: 'event'; e: CalEvent } | { kind: 'slot'; s: Slot })[] }> = {};
@@ -101,7 +117,10 @@ export default function WeekView({ slots, events, picked, onToggle, friendName }
         const empty = day.items.length === 0 && day.allDay.length === 0;
         return (
           <View key={dayKey(d)} style={styles.day}>
-            <Text style={styles.dayLabel}>{dayLabel(d)}</Text>
+            <Text style={[styles.dayLabel, d.getTime() < todayStart && styles.dayPast]}>
+              {dayLabel(d)}
+              {dayKey(d) === todayKey ? ' · Today' : ''}
+            </Text>
 
             {day.allDay.map((e, i) => (
               <Text key={`ad${i}`} style={styles.allDay} numberOfLines={1}>
@@ -141,7 +160,9 @@ export default function WeekView({ slots, events, picked, onToggle, friendName }
               )
             )}
 
-            {empty && <Text style={styles.nothing}>Nothing on</Text>}
+            {empty && (
+              <Text style={styles.nothing}>{d.getTime() < todayStart ? 'Past' : 'Nothing on'}</Text>
+            )}
           </View>
         );
       })}
@@ -156,6 +177,7 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: '600', color: colors.text },
   tabTextOn: { color: '#fff' },
   day: { marginBottom: spacing.md, gap: 6 },
+  dayPast: { opacity: 0.45 },
   dayLabel: { fontSize: 13, fontWeight: '700', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5 },
   allDay: { fontSize: 13, color: colors.muted, backgroundColor: '#F5F5F4', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
   event: { flexDirection: 'row', gap: spacing.sm, backgroundColor: '#F5F5F4', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },

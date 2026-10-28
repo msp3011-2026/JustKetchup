@@ -56,6 +56,7 @@ export default function NewInvite() {
   const [contact, setContact] = useState<Contact | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [firstDay, setFirstDay] = useState<string | undefined>(undefined);
   const [friend, setFriend] = useState<{ usesApp: boolean; calendarChecked: boolean }>({ usesApp: false, calendarChecked: false });
   const [picked, setPicked] = useState<string[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -75,6 +76,7 @@ export default function NewInvite() {
           connected: boolean;
           slots: Slot[];
           events?: CalEvent[];
+          firstDay?: string;
           friend?: { usesApp: boolean; calendarChecked: boolean };
           error?: string;
         }>(`/api/me/slots?contactId=${encodeURIComponent(String(contactId))}`),
@@ -82,6 +84,7 @@ export default function NewInvite() {
       setContact(c);
       setSlots(s.slots ?? []);
       setEvents(s.events ?? []);
+      setFirstDay(s.firstDay);
       setFriend(s.friend ?? { usesApp: false, calendarChecked: false });
       setConnected(Boolean(s.connected));
       // Pre-tick the first few times that work for both of you.
@@ -186,7 +189,7 @@ export default function NewInvite() {
         </Text>
 
         <View style={styles.list}>
-          <WeekView slots={slots} events={events} picked={picked} onToggle={toggle} friendName={first} />
+          <WeekView slots={slots} events={events} picked={picked} onToggle={toggle} friendName={first} firstDay={firstDay} />
           {slots.length === 0 && (
             <Text style={styles.muted}>Your calendar is full for the next two weeks.</Text>
           )}

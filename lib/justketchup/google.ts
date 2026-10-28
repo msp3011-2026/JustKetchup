@@ -92,7 +92,14 @@ export async function updateEvent(
   }
 }
 
-export type CalEvent = { start: string; end: string; title: string; allDay: boolean };
+export type CalEvent = {
+  start: string;
+  end: string;
+  title: string;
+  allDay: boolean;
+  /** Marked 'Show as: Free' in Google, or an invite not yet accepted. Still blocks the time. */
+  softBusy: boolean;
+};
 
 // The user's own events, so the app can show their week around the free slots.
 // Titles never leave the user's own app; friends only ever see free/busy.
@@ -103,7 +110,7 @@ export async function listEvents(accessToken: string, timeMin: string, timeMax: 
     singleEvents: 'true',
     orderBy: 'startTime',
     maxResults: '250',
-    fields: 'items(summary,start,end,status,transparency)',
+    fields: 'items(summary,start,end,status,transparency,attendees(self,responseStatus))',
   });
   const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -111,14 +118,17 @@ export async function listEvents(accessToken: string, timeMin: string, timeMax: 
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`google_events_failed: ${d.error?.message ?? r.status}`);
   return ((d.items ?? []) as any[])
-    .filter((e) => e.status !== 'cancelled')
-    .map((e) => {
+    .map((e) => ({ e, mine: (e.attendees ?? []).find((a: any) => a.self)?.responseStatus as string | undefined }))
+    // Cancelled events and invitations you declined don't count.
+    .filter(({ e, mine }) => e.status !== 'cancelled' && mine !== 'declined')
+    .map(({ e, mine }) => {
       const allDay = Boolean(e.start?.date && !e.start?.dateTime);
       return {
         start: e.start?.dateTime ?? `${e.start?.date}T00:00:00`,
         end: e.end?.dateTime ?? `${e.end?.date}T00:00:00`,
         title: e.summary ?? 'Busy',
         allDay,
+        softBusy: e.transparency === 'transparent' || mine === 'needsAction' || mine === 'tentative',
       };
     });
 }
