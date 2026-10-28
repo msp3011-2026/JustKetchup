@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/justketchup/supabaseAdmin';
-import { accessTokenForUser, createEvent } from '@/lib/justketchup/google';
+import { accessTokenForUser, createEvent, updateEvent } from '@/lib/justketchup/google';
 
 const TIER_DAYS: Record<string, number> = { warm: 30, friendly: 90, keep_warm: 180 };
 
@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: { token: string }
 
   const { data: invite } = await supabaseAdmin
     .from('invites')
-    .select('id, slots, contact_id, user_id, expires_at')
+    .select('id, slots, contact_id, user_id, expires_at, calendar_event_id')
     .eq('token', token)
     .maybeSingle();
 
@@ -62,14 +62,27 @@ export async function POST(req: Request, { params }: { params: { token: string }
     if (accessToken) {
       const start = match.start as string;
       const end = (match.end as string | undefined) ?? new Date(new Date(start).getTime() + 90 * 60000).toISOString();
-      const eventId = await createEvent(accessToken, {
+      const event = {
         summary: `Ketchup with ${contact?.name ?? 'a friend'}`,
         location: [venue?.name, venue?.address].filter(Boolean).join(', ') || undefined,
         description: venue?.maps_uri ? `Directions: ${venue.maps_uri}\n\nBooked with JustKetchup` : 'Booked with JustKetchup',
         start,
         end,
-      });
-      await supabaseAdmin.from('invites').update({ calendar_event_id: eventId }).eq('id', invite.id);
+      };
+      // A changed time or place moves the existing event instead of adding a second one.
+      let updated = false;
+      if (invite.calendar_event_id) {
+        try {
+          await updateEvent(accessToken, invite.calendar_event_id, event);
+          updated = true;
+        } catch (e: any) {
+          console.warn('[confirm] could not move existing event, creating a new one', e?.message ?? e);
+        }
+      }
+      if (!updated) {
+        const eventId = await createEvent(accessToken, event);
+        await supabaseAdmin.from('invites').update({ calendar_event_id: eventId }).eq('id', invite.id);
+      }
     } else {
       console.warn('[confirm] inviter has no Google Calendar connection', invite.user_id);
     }

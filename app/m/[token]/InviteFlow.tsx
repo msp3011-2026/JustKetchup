@@ -111,6 +111,11 @@ export default function InviteFlow({ token }: { token: string }) {
         setContactName(d.contactName);
         setSlots(d.slots ?? []);
         setHoods(d.neighborhoods ?? []);
+        if (d.status === 'confirmed' && d.chosen?.slot && d.chosen?.place) {
+          setSlot(d.chosen.slot);
+          setPlace(d.chosen.place);
+          setStep('done');
+        }
         if (d.savedProfile?.neighborhood_id) {
           setKnown(true);
           setHoodId(d.savedProfile.neighborhood_id);
@@ -338,9 +343,7 @@ export default function InviteFlow({ token }: { token: string }) {
           <h1 style={s.h1}>
             {place.name}, {fmtSlot(slot.start).day}.
           </h1>
-          <p style={s.body}>
-            {fmtSlot(slot.start).time}. {inviterName} has been told.
-          </p>
+          <p style={s.body}>{fmtSlot(slot.start).time}</p>
           <p style={s.muted}>{place.address}</p>
           <button style={s.btn} onClick={downloadIcs}>Add to my calendar</button>
           {place.mapsUri && (
@@ -348,7 +351,9 @@ export default function InviteFlow({ token }: { token: string }) {
               View on Google Maps
             </a>
           )}
-          <p style={s.fine}>Have a good one.</p>
+          <button style={{ ...s.editLink, display: 'block', margin: '20px auto 0', fontSize: 14 }} onClick={() => { setPlace(null); setStep('time'); }}>
+            Change time or place
+          </button>
         </>
       )}
     </Shell>

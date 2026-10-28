@@ -48,8 +48,36 @@ export async function GET(_req: Request, { params }: { params: { token: string }
     neighborhoods = allHoods ?? [];
   }
 
+  // Once confirmed, send back what was chosen so a refresh shows the
+  // confirmation instead of starting over.
+  let chosen: { slot: unknown; place: Record<string, unknown> | null } | null = null;
+  if (invite.status === 'confirmed' && invite.chosen_slot) {
+    const { data: v } = invite.chosen_place_id
+      ? await supabaseAdmin
+          .from('venue_cache')
+          .select('place_id, name, address, rating, reviews, price_level, maps_uri')
+          .eq('place_id', invite.chosen_place_id)
+          .maybeSingle()
+      : { data: null };
+    chosen = {
+      slot: invite.chosen_slot,
+      place: v
+        ? {
+            id: v.place_id,
+            name: v.name,
+            address: v.address ?? '',
+            rating: v.rating ?? 0,
+            reviews: v.reviews ?? 0,
+            priceLevel: v.price_level ?? null,
+            mapsUri: v.maps_uri ?? null,
+          }
+        : null,
+    };
+  }
+
   return NextResponse.json({
     status: invite.status,
+    chosen,
     inviterName: (inviter?.name ?? 'Your friend').split(' ')[0],
     contactName: (contact?.name ?? '').split(' ')[0],
     city,

@@ -68,3 +68,26 @@ export async function createEvent(
   if (!r.ok) throw new Error(`google_create_event_failed: ${d.error?.message ?? r.status}`);
   return d.id as string;
 }
+
+// Moves an existing event (used when the friend changes the time or place).
+export async function updateEvent(
+  accessToken: string,
+  eventId: string,
+  ev: { summary: string; location?: string; description?: string; start: string; end: string }
+): Promise<void> {
+  const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      summary: ev.summary,
+      location: ev.location ?? null,
+      description: ev.description,
+      start: { dateTime: ev.start },
+      end: { dateTime: ev.end },
+    }),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(`google_update_event_failed: ${r.status} ${d.error?.message ?? ''}`.trim());
+  }
+}
