@@ -71,11 +71,24 @@ export function kmBetween(a: Coords, b: Coords): number {
   return R * 2 * Math.asin(Math.sqrt(h));
 }
 
+// Google's Places API occasionally answers 500/503 ("Internal server error.
+// Please retry") or 429; the identical request succeeds moments later. Retry
+// those a couple of times before giving up. Other errors (400, 403) are real
+// problems with the request or key and fail immediately.
+async function fetchWithRetry(url: string, init: RequestInit, attempts = 3): Promise<Response> {
+  let res = await fetch(url, init);
+  for (let i = 1; i < attempts && (res.status >= 500 || res.status === 429); i++) {
+    await new Promise((r) => setTimeout(r, 400 * i));
+    res = await fetch(url, init);
+  }
+  return res;
+}
+
 async function nearby(centre: Coords, radiusM: number, includedTypes: string[]): Promise<Place[]> {
   const key = process.env.GOOGLE_PLACES_API_KEY;
   if (!key) throw new Error('GOOGLE_PLACES_API_KEY is not set');
 
-  const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+  const res = await fetchWithRetry('https://places.googleapis.com/v1/places:searchNearby', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

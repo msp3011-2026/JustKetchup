@@ -263,7 +263,7 @@ export default function InviteFlow({ token }: { token: string }) {
 
       {step === 'time' && (
         <>
-          <h2 style={s.h2}>When suits you?</h2>
+          <h2 style={s.h2}>When works for you?</h2>
           <p style={s.body}>{inviterName} is free at these times.</p>
 
           {summary && (
