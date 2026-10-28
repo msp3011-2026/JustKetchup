@@ -4,11 +4,11 @@ export const DIETARY = [
   { v: 'vegan', label: 'Vegan' },
   { v: 'halal', label: 'Halal' },
   { v: 'gluten_free', label: 'Gluten free' },
+  { v: 'no_pork', label: 'No pork' },
+  { v: 'no_shellfish', label: 'No shellfish' },
 ];
 
 export const CUISINES = [
-  { v: 'brunch', label: 'Brunch' },
-  { v: 'breakfast', label: 'Breakfast' },
   { v: 'italian', label: 'Italian' },
   { v: 'japanese', label: 'Japanese' },
   { v: 'indian', label: 'Indian' },

@@ -20,11 +20,11 @@ const DIETARY = [
   { v: 'vegan', label: 'Vegan' },
   { v: 'halal', label: 'Halal' },
   { v: 'gluten_free', label: 'Gluten free' },
+  { v: 'no_pork', label: 'No pork' },
+  { v: 'no_shellfish', label: 'No shellfish' },
 ];
 
 const CUISINES = [
-  { v: 'brunch', label: 'Brunch' },
-  { v: 'breakfast', label: 'Breakfast' },
   { v: 'italian', label: 'Italian' },
   { v: 'japanese', label: 'Japanese' },
   { v: 'indian', label: 'Indian' },
@@ -336,7 +336,7 @@ export default function InviteFlow({ token }: { token: string }) {
             ))}
           </div>
 
-          <h3 style={s.h3}>Anything we should know about food?</h3>
+          <h3 style={s.h3}>Any dietary restrictions?</h3>
           <div style={s.chips}>
             {DIETARY.map((d) => (
               <Chip key={d.v} on={dietary.includes(d.v)} onClick={() => toggle(dietary, setDietary, d.v)}>{d.label}</Chip>

@@ -39,8 +39,6 @@ const MIN_REVIEWS = 500;
 const AFFORDABLE = new Set(['PRICE_LEVEL_INEXPENSIVE', 'PRICE_LEVEL_MODERATE']);
 
 const CUISINE_TYPES: Record<string, string> = {
-  brunch: 'brunch_restaurant',
-  breakfast: 'breakfast_restaurant',
   italian: 'italian_restaurant',
   japanese: 'japanese_restaurant',
   indian: 'indian_restaurant',
@@ -62,6 +60,22 @@ const DIETARY_TYPES: Record<string, string> = {
   vegan: 'vegan_restaurant',
   vegetarian: 'vegetarian_restaurant',
 };
+
+// "No pork" / "No shellfish": Google has no menu data, so we leave out places
+// whose type or name shows they're built around it (seafood restaurants,
+// oyster bars, BBQ and pork spots). It can't catch one dish on a menu.
+const NO_SHELLFISH_TYPES = ['seafood_restaurant'];
+const NO_SHELLFISH_NAME = /\b(oysters?|lobsters?|crabs?|clams?|shrimp|seafood|shellfish|mussels?|crawfish|fish market|raw bar|poke)\b/i;
+const NO_PORK_TYPES = ['barbecue_restaurant'];
+const NO_PORK_NAME = /\b(bbq|barbecue|barbeque|pork|porchetta|bacon|carnitas|al pastor|charcuterie|salumeria|smokehouse|lechon)\b/i;
+
+export function excludedFor(p: { name: string; types: string[] }, dietary: string[]): boolean {
+  const noPork = dietary.includes('no_pork') || dietary.includes('halal');
+  const noShellfish = dietary.includes('no_shellfish');
+  if (noShellfish && (p.types.some((t) => NO_SHELLFISH_TYPES.includes(t)) || NO_SHELLFISH_NAME.test(p.name))) return true;
+  if (noPork && (p.types.some((t) => NO_PORK_TYPES.includes(t)) || NO_PORK_NAME.test(p.name))) return true;
+  return false;
+}
 
 export function midpoint(a: Coords, b: Coords): Coords {
   return { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 };
@@ -240,6 +254,7 @@ export async function findSpots(
   const at = opts.at;
   const usable = (p: Place) =>
     p.reservable !== false &&
+    !excludedFor(p, dietary) &&
     (!at || openDuring(p.periods, at.start, at.end, at.tz) !== false);
 
   const RADII = [1500, 3000, 5000];

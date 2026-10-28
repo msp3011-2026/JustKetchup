@@ -181,16 +181,15 @@ export default function ProfileScreen() {
               <Text style={styles.rowGo}>Edit ›</Text>
             </TouchableOpacity>
 
-            <Text style={styles.section}>Food</Text>
-            <Text style={styles.hint}>Optional. We&apos;ll only suggest places that work for what you eat.</Text>
+            <Text style={styles.section}>Dietary restrictions</Text>
+            <Text style={styles.hint}>Optional. We&apos;ll skip places that don&apos;t work for you.</Text>
             <View style={styles.chips}>
               {DIETARY.map((d) => (
                 <Chip key={d.v} on={p.dietary.includes(d.v)} label={d.label} onPress={() => toggle('dietary', d.v)} />
               ))}
             </View>
-            <Text style={[styles.hint, { marginTop: spacing.md }]}>
-              Optional. Your favorites, used when your friend doesn&apos;t mind what you eat.
-            </Text>
+            <Text style={styles.section}>Favorite cuisines</Text>
+            <Text style={styles.hint}>Optional. We use these when your friend doesn&apos;t mind what to eat.</Text>
             <View style={styles.chips}>
               {CUISINES.map((c) => (
                 <Chip key={c.v} on={p.cuisines.includes(c.v)} label={c.label} onPress={() => toggle('cuisines', c.v)} />
