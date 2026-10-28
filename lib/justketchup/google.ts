@@ -91,3 +91,34 @@ export async function updateEvent(
     throw new Error(`google_update_event_failed: ${r.status} ${d.error?.message ?? ''}`.trim());
   }
 }
+
+export type CalEvent = { start: string; end: string; title: string; allDay: boolean };
+
+// The user's own events, so the app can show their week around the free slots.
+// Titles never leave the user's own app; friends only ever see free/busy.
+export async function listEvents(accessToken: string, timeMin: string, timeMax: string): Promise<CalEvent[]> {
+  const q = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '250',
+    fields: 'items(summary,start,end,status,transparency)',
+  });
+  const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`google_events_failed: ${d.error?.message ?? r.status}`);
+  return ((d.items ?? []) as any[])
+    .filter((e) => e.status !== 'cancelled')
+    .map((e) => {
+      const allDay = Boolean(e.start?.date && !e.start?.dateTime);
+      return {
+        start: e.start?.dateTime ?? `${e.start?.date}T00:00:00`,
+        end: e.end?.dateTime ?? `${e.end?.date}T00:00:00`,
+        title: e.summary ?? 'Busy',
+        allDay,
+      };
+    });
+}

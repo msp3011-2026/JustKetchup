@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
 
   const { data: invite, error } = await supabaseAdmin
     .from('invites')
-    .select('id, token, status, slots, chosen_slot, chosen_place_id, expires_at, user_id, contact_id')
+    .select('id, token, status, slots, chosen_slot, chosen_place_id, expires_at, user_id, contact_id, friend_busy')
     .eq('token', token)
     .maybeSingle();
 
@@ -79,6 +79,8 @@ export async function GET(_req: Request, { params }: { params: { token: string }
   return NextResponse.json({
     status: invite.status,
     chosen,
+    // Which offered times clash with the friend's Google Calendar, if they checked.
+    friendCalendar: invite.friend_busy ?? null,
     inviterName: (inviter?.name ?? 'Your friend').split(' ')[0],
     contactName: (contact?.name ?? '').split(' ')[0],
     city,

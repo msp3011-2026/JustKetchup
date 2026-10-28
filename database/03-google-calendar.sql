@@ -23,3 +23,7 @@ alter table public.invites
 
 -- 28 Oct: whether Google says the place takes reservations (null = unknown).
 alter table public.venue_cache add column if not exists reservable boolean;
+
+-- 28 Oct: which offered times clash with the friend's Google Calendar,
+-- if they chose "Check my Google Calendar". Only clash flags are stored.
+alter table public.invites add column if not exists friend_busy jsonb;

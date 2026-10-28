@@ -90,6 +90,9 @@ export default function InviteFlow({ token }: { token: string }) {
   const [pendingSlot, setPendingSlot] = useState<Slot | null>(null);
   const [place, setPlace] = useState<Place | null>(null);
   const [busy, setBusy] = useState(false);
+  // Offered times that clash with the friend's Google Calendar, once checked.
+  const [calBusy, setCalBusy] = useState<string[] | null>(null);
+  const [calNote, setCalNote] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -117,11 +120,20 @@ export default function InviteFlow({ token }: { token: string }) {
           setPlace(d.chosen.place);
           setStep('done');
         }
-        if (d.savedProfile?.neighborhood_id) {
+        if (d.friendCalendar?.busy) setCalBusy(d.friendCalendar.busy);
+        const hasProfile = Boolean(d.savedProfile?.neighborhood_id);
+        if (hasProfile) {
           setKnown(true);
           setHoodId(d.savedProfile.neighborhood_id);
           setDietary(d.savedProfile.dietary ?? []);
           setCuisines(d.savedProfile.cuisines ?? []);
+        }
+        // Back from Google's calendar screen: return to picking a time.
+        const cal = new URLSearchParams(window.location.search).get('calendar');
+        if (cal && d.status !== 'confirmed') {
+          setStep(hasProfile ? 'time' : 'details');
+          if (cal === 'error') setCalNote("We couldn't read your calendar. You can still pick a time below.");
+          window.history.replaceState(null, '', window.location.pathname);
         }
       } catch {
         setErr('Something went wrong loading this invite.');
@@ -272,6 +284,16 @@ export default function InviteFlow({ token }: { token: string }) {
           <h2 style={s.h2}>When works for you?</h2>
           <p style={s.body}>{inviterName} is free at these times.</p>
 
+          {calBusy === null ? (
+            <a style={s.calButton} href={`/api/invite/${token}/calendar`}>
+              Check my Google Calendar
+              <span style={s.calSub}>Only sees when you&apos;re busy, not what your plans are.</span>
+            </a>
+          ) : (
+            <p style={s.calDone}>Checked against your Google Calendar.</p>
+          )}
+          {calNote && <p style={s.error}>{calNote}</p>}
+
           {summary && (
             <div style={s.summary}>
               <span style={s.summaryText}>{summary}</span>
@@ -296,6 +318,11 @@ export default function InviteFlow({ token }: { token: string }) {
                 <span style={s.optionMain}>{f.day}</span>
                 <span style={chosen && busy ? s.optionSubActive : s.optionSub}>
                   {chosen && busy ? 'Finding somewhere good…' : f.time}
+                  {!(chosen && busy) && calBusy !== null && (
+                    <span style={calBusy.includes(sl.start) ? s.tagBusy : s.tagFree}>
+                      {calBusy.includes(sl.start) ? ' · You have something then' : ' · You’re free'}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -391,6 +418,11 @@ const s: Record<string, React.CSSProperties> = {
   summaryText: { flex: 1, fontSize: 13, color: '#57534E', lineHeight: 1.4 },
   editLink: { background: 'none', border: 'none', color: '#EA580C', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 },
   fine: { fontSize: 13, color: '#78716C', marginTop: 16, textAlign: 'center' },
+  calButton: { display: 'block', padding: '12px 16px', marginBottom: 16, borderRadius: 12, border: '1px solid #EA580C', color: '#EA580C', fontSize: 15, fontWeight: 600, textDecoration: 'none', background: '#FFF7ED' },
+  calSub: { display: 'block', fontSize: 12, fontWeight: 400, color: '#78716C', marginTop: 2 },
+  calDone: { fontSize: 13, color: '#15803D', margin: '0 0 12px' },
+  tagFree: { color: '#15803D' },
+  tagBusy: { color: '#B45309' },
   select: { width: '100%', padding: '13px 12px', fontSize: 16, borderRadius: 10, border: '1px solid #E7E5E4', background: '#fff', color: '#1C1917' },
   chips: { display: 'flex', flexWrap: 'wrap', gap: 8 },
   chip: { padding: '9px 14px', borderRadius: 999, border: '1px solid', fontSize: 14, cursor: 'pointer' },

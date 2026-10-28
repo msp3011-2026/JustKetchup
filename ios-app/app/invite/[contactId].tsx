@@ -15,8 +15,7 @@ import { getContact, type Contact } from '../../lib/contacts';
 import { api } from '../../lib/api';
 import { signInWithGoogle } from '../../lib/googleAuth';
 import { colors, spacing } from '../../lib/theme';
-
-type Slot = { start: string; end: string };
+import WeekView, { type CalEvent, type Slot } from '../../components/WeekView';
 
 const MAX_PICK = 4;
 
@@ -56,6 +55,8 @@ export default function NewInvite() {
 
   const [contact, setContact] = useState<Contact | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [events, setEvents] = useState<CalEvent[]>([]);
+  const [friend, setFriend] = useState<{ usesApp: boolean; calendarChecked: boolean }>({ usesApp: false, calendarChecked: false });
   const [picked, setPicked] = useState<string[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,13 +71,21 @@ export default function NewInvite() {
     try {
       const [c, s] = await Promise.all([
         getContact(String(contactId)),
-        api<{ connected: boolean; slots: Slot[]; error?: string }>('/api/me/slots'),
+        api<{
+          connected: boolean;
+          slots: Slot[];
+          events?: CalEvent[];
+          friend?: { usesApp: boolean; calendarChecked: boolean };
+          error?: string;
+        }>(`/api/me/slots?contactId=${encodeURIComponent(String(contactId))}`),
       ]);
       setContact(c);
       setSlots(s.slots ?? []);
+      setEvents(s.events ?? []);
+      setFriend(s.friend ?? { usesApp: false, calendarChecked: false });
       setConnected(Boolean(s.connected));
-      // Pre-tick the first few free times so it's one tap to send.
-      setPicked((s.slots ?? []).slice(0, 3).map((x) => x.start));
+      // Pre-tick the first few times that work for both of you.
+      setPicked((s.slots ?? []).filter((x) => !x.friendBusy).slice(0, 3).map((x) => x.start));
     } catch (e: any) {
       setLoadError(e?.message ?? String(e));
     } finally {
@@ -168,28 +177,16 @@ export default function NewInvite() {
 
         <Text style={styles.h2}>When are you free?</Text>
         <Text style={styles.muted}>
-          {connected ? 'From your Google Calendar. ' : ''}Tick up to {MAX_PICK} times to offer {first}.
+          {friend.calendarChecked
+            ? `Checked against your calendar and ${first}'s. `
+            : connected
+              ? 'Your week from Google Calendar. '
+              : ''}
+          Tick up to {MAX_PICK} times to offer {first}.
         </Text>
 
         <View style={styles.list}>
-          {slots.map((s) => {
-            const on = picked.includes(s.start);
-            const f = fmt(s.start);
-            return (
-              <TouchableOpacity
-                key={s.start}
-                style={[styles.slot, on && styles.slotOn]}
-                onPress={() => toggle(s.start)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.check, on && styles.checkOn]}>
-                  {on && <Text style={styles.checkMark}>✓</Text>}
-                </View>
-                <Text style={styles.slotDay}>{f.day}</Text>
-                <Text style={styles.slotTime}>{f.time}</Text>
-              </TouchableOpacity>
-            );
-          })}
+          <WeekView slots={slots} events={events} picked={picked} onToggle={toggle} friendName={first} />
           {slots.length === 0 && (
             <Text style={styles.muted}>Your calendar is full for the next two weeks.</Text>
           )}
