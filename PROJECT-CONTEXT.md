@@ -84,14 +84,17 @@ Free, instant, no carrier registration.
 
 ## 4. What is NOT built
 
-- **The iOS app does not create invites.** They're inserted by hand in SQL. This is the
-  single biggest gap — it's what joins the two working halves into one product.
+- ~~The iOS app does not create invites.~~ **Built 27 Oct, not yet tested on a phone:**
+  contact screen → "Ketchup with X" → free times from Google Calendar → WhatsApp opens
+  with the message pre-typed. Confirmation adds the meetup to the inviter's Google
+  Calendar and resets the next nudge. Routes: /api/me/slots, /api/invites,
+  /api/google/connect. Token table: google_tokens (database/03-google-calendar.sql).
 - **No notification when the contact confirms.** The invite row flips to `confirmed`
   and nothing tells the user.
 - **No push notifications at all.** Needs a development build (`expo-dev-client`,
   `npx expo run:ios`) plus an APNs key — `expo-notifications` dropped push support in
   Expo Go as of SDK 53. Needs the Apple Developer account.
-- **No calendar reading or writing.** Decision (27 Oct): Google Calendar, server-side.
+- Google Calendar read + write: built 27 Oct (see above). Google OAuth app is published (In production), scopes calendar.events + calendar.freebusy.
 - **No reservations.** Deliberately deferred — OpenTable and Resy are partner-gated
   (apply, get approved, sign a contract; no self-serve keys). ChatGPT, Gemini, Alexa+
   and Perplexity can book because those companies signed deals, not because the API is
