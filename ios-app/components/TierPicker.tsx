@@ -3,7 +3,7 @@ import { TIERS, type TierValue } from '../lib/tiers';
 import { colors, spacing } from '../lib/theme';
 
 type Props = {
-  value: TierValue;
+  value: TierValue | null;
   onChange: (value: TierValue) => void;
   label?: string;
 };

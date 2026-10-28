@@ -26,7 +26,7 @@ export default function ImportContacts() {
   const [all, setAll] = useState<PhoneContact[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
-  const [tier, setTier] = useState<TierValue>('friendly');
+  const [tier, setTier] = useState<TierValue | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function loadPhoneContacts() {
@@ -80,22 +80,30 @@ export default function ImportContacts() {
   async function handleImport() {
     const picked = all.filter((c) => selected.has(c.id));
     if (picked.length === 0) {
-      return Alert.alert('Pick someone', 'Select at least one person to import.');
+      return Alert.alert('Pick someone', 'Select at least one person to add.');
+    }
+    if (!tier) {
+      return Alert.alert('How often?', 'Choose how often you want to catch up.');
     }
 
     setSaving(true);
     try {
-      const { added, skipped } = await importContacts(
+      const { added, skipped, ids } = await importContacts(
         picked.map((c) => ({ name: c.name, phone: c.phone, tier }))
       );
+      // One person: go straight to their card so you can ketchup right away.
+      if (ids.length === 1) {
+        router.replace(`/contacts/${ids[0]}`);
+        return;
+      }
       Alert.alert(
-        'Imported',
+        'Added',
         `Added ${added} ${added === 1 ? 'person' : 'people'}.` +
-          (skipped > 0 ? ` Skipped ${skipped} already saved.` : ''),
+          (skipped > 0 ? ` ${skipped} ${skipped === 1 ? 'was' : 'were'} already saved.` : ''),
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (e: any) {
-      Alert.alert('Could not import', e?.message ?? String(e));
+      Alert.alert('Could not add', e?.message ?? String(e));
     } finally {
       setSaving(false);
     }
@@ -143,7 +151,7 @@ export default function ImportContacts() {
           placeholderTextColor={colors.muted}
           autoCorrect={false}
         />
-        <TierPicker value={tier} onChange={setTier} label="How often for everyone you pick?" />
+        <TierPicker value={tier} onChange={setTier} label={selected.size > 1 ? "How often for these people?" : "How often do you want to catch up?"} />
       </View>
 
       <FlatList
@@ -178,16 +186,20 @@ export default function ImportContacts() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.button, saving && styles.buttonDisabled]}
+          style={[styles.button, (saving || !tier || selected.size === 0) && styles.buttonDisabled]}
           onPress={handleImport}
-          disabled={saving}
+          disabled={saving || !tier || selected.size === 0}
           activeOpacity={0.85}
         >
           {saving ? (
             <ActivityIndicator color={colors.primaryText} />
           ) : (
             <Text style={styles.buttonText}>
-              Import{selected.size > 0 ? ` ${selected.size}` : ''}
+              {selected.size === 0
+                ? 'Pick someone'
+                : !tier
+                  ? 'Choose how often'
+                  : `Add ${selected.size === 1 ? 'and open' : selected.size}`}
             </Text>
           )}
         </TouchableOpacity>

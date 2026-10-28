@@ -22,7 +22,7 @@ export default function NewContact() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [tier, setTier] = useState<TierValue>('friendly');
+  const [tier, setTier] = useState<TierValue | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -31,11 +31,14 @@ export default function NewContact() {
 
     if (!cleanName) return Alert.alert('Name', 'Please enter their name.');
     if (!e164) return Alert.alert('Phone number', 'Enter a valid mobile number, e.g. (555) 123-4567.');
+    if (!tier) return Alert.alert('How often?', 'Choose how often you want to catch up.');
 
     setSaving(true);
     try {
-      await createContact({ name: cleanName, phone: e164, tier });
+      const created = await createContact({ name: cleanName, phone: e164, tier });
+      // Close the add sheet and open their card so you can ketchup right away.
       router.back();
+      router.push(`/contacts/${created.id}`);
     } catch (e: any) {
       Alert.alert('Could not save', e?.message ?? String(e));
     } finally {

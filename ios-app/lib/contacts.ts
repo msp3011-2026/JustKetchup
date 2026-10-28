@@ -84,34 +84,44 @@ export async function deleteContact(id: string): Promise<void> {
 
 /**
  * Bulk import. Skips numbers already saved so re-importing from the phone book
- * doesn't create duplicates. Returns how many were added and how many skipped.
+ * doesn't create duplicates. Returns how many were added and skipped, plus the
+ * contact id for every person picked (new or already saved), in pick order.
  */
 export async function importContacts(
   drafts: ContactDraft[]
-): Promise<{ added: number; skipped: number }> {
+): Promise<{ added: number; skipped: number; ids: string[] }> {
   const userId = await requireUserId();
 
   const { data: existing, error: existingError } = await supabase
     .from('contacts')
-    .select('phone')
+    .select('id, phone')
     .eq('user_id', userId);
   if (existingError) throw existingError;
 
-  const seen = new Set((existing ?? []).map((c) => c.phone));
-  const fresh = drafts.filter((d) => !seen.has(d.phone));
+  const idByPhone: Record<string, string> = {};
+  (existing ?? []).forEach((c) => {
+    idByPhone[c.phone] = c.id;
+  });
+  const fresh = drafts.filter((d) => !idByPhone[d.phone]);
 
-  if (fresh.length === 0) return { added: 0, skipped: drafts.length };
+  if (fresh.length > 0) {
+    const rows = fresh.map((d, index) => ({
+      user_id: userId,
+      name: d.name,
+      phone: d.phone,
+      tier: d.tier,
+      next_nudge_date: d.next_nudge_date ?? phasedNudgeDate(index),
+    }));
+    const { data: inserted, error } = await supabase.from('contacts').insert(rows).select('id, phone');
+    if (error) throw error;
+    (inserted ?? []).forEach((c) => {
+      idByPhone[c.phone] = c.id;
+    });
+  }
 
-  const rows = fresh.map((d, index) => ({
-    user_id: userId,
-    name: d.name,
-    phone: d.phone,
-    tier: d.tier,
-    next_nudge_date: d.next_nudge_date ?? phasedNudgeDate(index),
-  }));
-
-  const { error } = await supabase.from('contacts').insert(rows);
-  if (error) throw error;
-
-  return { added: fresh.length, skipped: drafts.length - fresh.length };
+  return {
+    added: fresh.length,
+    skipped: drafts.length - fresh.length,
+    ids: drafts.map((d) => idByPhone[d.phone]).filter(Boolean),
+  };
 }
