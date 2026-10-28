@@ -66,7 +66,7 @@ The Expo project ID (`00c97e1f-...`) is unchanged, so your Expo account still ow
 
 **`EMFILE: too many open files`** — `fsevents` went missing. Run:
 ```
-npm install fsevents --ignore-scripts
+npm install --no-save fsevents --ignore-scripts
 ```
 
 **Wrong Node version** — `start.sh` warns you. Fix with `nvm install 22 && nvm use 22`.

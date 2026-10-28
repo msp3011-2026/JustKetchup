@@ -23,7 +23,7 @@ fi
 #     --ignore-scripts skips the pointless build and keeps the working binary.
 if [ ! -d node_modules/fsevents ]; then
   echo "fsevents missing — reinstalling (needed to avoid EMFILE crashes)..."
-  npm install fsevents --ignore-scripts
+  npm install --no-save fsevents --ignore-scripts
   if [ -d node_modules/fsevents ]; then
     echo "fsevents restored."
   else

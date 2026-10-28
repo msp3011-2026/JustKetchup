@@ -279,7 +279,7 @@ raises the open-file limit, loads `.env`.
 - `./start.sh` — ngrok tunnel. Only if LAN fails. Needs `npx expo login`.
 
 **Note:** this folder has no `node_modules`. Run `npm install` once before first use,
-then `npm install fsevents --ignore-scripts`.
+then `npm install --no-save fsevents --ignore-scripts`.
 
 ---
 
@@ -294,7 +294,7 @@ Metro picks a watcher: Watchman > FSEventsWatcher (needs the `fsevents` npm pack
 NodeWatcher (one file handle per directory — always dies). `fsevents` ships a prebuilt
 binary but declares `install: node-gyp rebuild`, and **no `binding.gyp` is in the
 published tarball**, so the build always fails and npm silently deletes it because it's
-an optionalDependency. Fix: `npm install fsevents --ignore-scripts`. Raising `ulimit` to
+an optionalDependency. Fix: `npm install --no-save fsevents --ignore-scripts`. Raising `ulimit` to
 65536 does not help. Homebrew/Watchman is unnecessary.
 
 **Expo Go's version dictates the SDK.** Apple only allows the latest Expo Go, so you

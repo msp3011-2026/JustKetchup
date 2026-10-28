@@ -35,7 +35,7 @@ git clone https://github.com/msp3011-2026/JustKetchup.git justketchup
 cd justketchup/ios-app
 cp ~/Desktop/JustKetchup/ios-app/.env .env
 npm install
-npm install fsevents --ignore-scripts
+npm install --no-save fsevents --ignore-scripts
 ./start.sh --lan
 ```
 
