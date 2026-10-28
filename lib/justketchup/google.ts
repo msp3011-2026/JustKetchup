@@ -145,6 +145,7 @@ export async function updateEvent(accessToken: string, eventId: string, ev: Even
 
 export type RawEvent = {
   id: string;
+  fromGmail?: boolean;
   summary: string;
   location: string;
   description: string;
@@ -160,8 +161,11 @@ export async function listRawEvents(accessToken: string, timeMin: string, timeMa
     singleEvents: 'true',
     orderBy: 'startTime',
     maxResults: '100',
-    fields: 'items(id,summary,location,description,start,end,status)',
+    fields: 'items(id,summary,location,description,start,end,status,eventType)',
   });
+  // Include the events Gmail adds from reservation emails, not just regular ones.
+  q.append('eventTypes', 'default');
+  q.append('eventTypes', 'fromGmail');
   const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -171,6 +175,7 @@ export async function listRawEvents(accessToken: string, timeMin: string, timeMa
     .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
     .map((e) => ({
       id: e.id,
+      fromGmail: e.eventType === 'fromGmail',
       summary: e.summary ?? '',
       location: e.location ?? '',
       description: e.description ?? '',

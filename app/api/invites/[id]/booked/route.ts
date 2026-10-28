@@ -19,6 +19,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!invite) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const place = ((invite.shortlist as any[]) ?? []).find((p) => p.id === body?.placeId);
   if (!place) return NextResponse.json({ error: 'place_not_on_shortlist' }, { status: 400 });
-  await finalizeBooking(invite as any, place, { origin: new URL(req.url).origin });
+  try {
+    await finalizeBooking(invite as any, place, { origin: new URL(req.url).origin });
+  } catch (e: any) {
+    return NextResponse.json({ error: String(e?.message ?? e) }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

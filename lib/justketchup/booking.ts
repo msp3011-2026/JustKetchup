@@ -94,14 +94,41 @@ function norm(s: string) {
     .trim();
 }
 
-/** Which shortlisted place, if any, an event is a reservation for. */
+// Words that say nothing about which restaurant it is.
+const GENERIC = new Set(
+  'a an and at for of on in to with by reservation reservations table dinner lunch brunch party guests people resy opentable confirmed nyc ny new york kitchen house grill bistro eatery'.split(' ')
+);
+
+function tokens(s: string): string[] {
+  return norm(s).split(' ').filter((t) => t && !GENERIC.has(t));
+}
+
+/** Does this event look like a restaurant reservation? */
+export function looksLikeReservation(ev: RawEvent): boolean {
+  return Boolean(ev.fromGmail) || /reservation|resy|opentable|table for \d/i.test(`${ev.summary} ${ev.description}`);
+}
+
+/**
+ * Which shortlisted place an event is for. Names often differ between Google
+ * Maps and Resy/OpenTable ("Top Thai 55 Carmine" vs "Top Thai Vintage"), so
+ * this scores shared words rather than requiring the exact name.
+ */
 export function matchEvent(ev: RawEvent, places: ShortPlace[]): ShortPlace | null {
-  const text = ` ${norm(`${ev.summary} ${ev.location} ${ev.description}`)} `;
+  const evText = `${ev.summary} ${ev.location}`;
+  const evTokens = new Set(tokens(evText));
+  let best: { p: ShortPlace; score: number } | null = null;
   for (const p of places) {
-    const n = norm(p.name);
-    if (n.length >= 3 && text.includes(` ${n} `)) return p;
+    const pt = Array.from(new Set(tokens(p.name)));
+    if (pt.length === 0) continue;
+    const shared = pt.filter((t) => evTokens.has(t)).length;
+    const exact = ` ${norm(evText)} `.includes(` ${norm(p.name)} `);
+    const score = exact ? 100 : shared;
+    if (score > (best?.score ?? 0)) best = { p, score };
   }
-  return null;
+  if (!best) return null;
+  // Two shared words ("top thai"), or every word when the name is a single word.
+  const needed = Math.min(2, tokens(best.p.name).length);
+  return best.score >= needed ? best.p : null;
 }
 
 /**
@@ -123,10 +150,26 @@ export async function findBooking(invite: {
     new Date(t - 6 * HOUR).toISOString(),
     new Date(t + 6 * HOUR).toISOString()
   );
-  for (const ev of events) {
-    if (ev.id === invite.calendar_event_id) continue; // our own held event
+  const candidates = events.filter((ev) => ev.id !== invite.calendar_event_id); // skip our own held event
+  // 1. A shortlisted place, by name.
+  for (const ev of candidates) {
     const place = matchEvent(ev, invite.shortlist ?? []);
-    if (place) return { place, event: ev };
+    if (place && (looksLikeReservation(ev) || Math.abs(new Date(ev.start).getTime() - t) <= 2 * HOUR)) {
+      return { place, event: ev };
+    }
+  }
+  // 2. One reservation within two hours of the time that isn't on the
+  //    shortlist (ChatGPT booked somewhere else): use it as it is.
+  const resv = candidates.filter(
+    (ev) => looksLikeReservation(ev) && Math.abs(new Date(ev.start).getTime() - t) <= 2 * HOUR
+  );
+  if (resv.length === 1) {
+    const ev = resv[0];
+    const name = ev.location || ev.summary.replace(/^reservation (at|for)\s+/i, '');
+    return {
+      place: { id: `gcal:${ev.id}`, name, address: '', mapsUri: null, rating: 0, reviews: 0, priceLevel: null, reservable: true },
+      event: ev,
+    };
   }
   return null;
 }
@@ -152,18 +195,8 @@ export async function finalizeBooking(
   const start = opts.atStart ?? invite.chosen_slot.start;
   const slot = { start, end: new Date(new Date(start).getTime() + 90 * 60000).toISOString() };
 
-  await supabaseAdmin
-    .from('invites')
-    .update({
-      status: 'confirmed',
-      chosen_place_id: place.id,
-      chosen_slot: slot,
-      booked_at: new Date().toISOString(),
-      responded_at: new Date().toISOString(),
-    })
-    .eq('id', invite.id);
-
-  await supabaseAdmin.from('venue_cache').upsert(
+  // The restaurant must exist in venue_cache before the invite can point at it.
+  const { error: cacheErr } = await supabaseAdmin.from('venue_cache').upsert(
     {
       place_id: place.id,
       name: place.name,
@@ -177,6 +210,19 @@ export async function finalizeBooking(
     },
     { onConflict: 'place_id' }
   );
+  if (cacheErr) throw new Error(`venue_cache: ${cacheErr.message}`);
+
+  const { error: invErr } = await supabaseAdmin
+    .from('invites')
+    .update({
+      status: 'confirmed',
+      chosen_place_id: place.id,
+      chosen_slot: slot,
+      booked_at: new Date().toISOString(),
+      responded_at: new Date().toISOString(),
+    })
+    .eq('id', invite.id);
+  if (invErr) throw new Error(`invite: ${invErr.message}`);
 
   const [{ data: contact }, { data: inviter }] = await Promise.all([
     supabaseAdmin.from('contacts').select('name, tier').eq('id', invite.contact_id).maybeSingle(),
