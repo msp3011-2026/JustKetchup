@@ -46,6 +46,26 @@ built, is published as the "JustKetchup User Flow" page.
 6. **No reply** — reminder after a few days (Remind him / Cancel); expires at 14 days
    and Alan goes back into her nudges.
 
+### Booking flow decision (28 Oct, pending the iPhone ChatGPT test)
+
+The friend no longer picks the venue. New shape:
+1. Friend picks a time, then neighborhood + cuisines, then gives their **email (required)**:
+   "We need it to send you the reservation details."
+2. Friend sees "Manasi will book a spot near both of you" plus the 3–4 shortlisted places.
+   Location doesn't have to be exactly midway; big cities have plenty of options.
+3. JustKetchup adds the friend as a **guest on the Google Calendar event** in Manasi's
+   calendar ("place TBD"); Google sends the invite and, later, the update with the venue.
+4. Manasi gets a push ("ready to book") and taps **Book with ChatGPT**: a ranked list of
+   the 3–4 places at the exact time; ChatGPT books the first available via Resy/OpenTable.
+   Human in the loop is fine for now.
+5. JustKetchup finds the booking in Manasi's Google Calendar (Gmail's "Events from Gmail"
+   adds reservation emails) by matching a shortlisted name near that time; falls back to
+   "Which one did you get?". Then it updates the event (friend gets Google's update),
+   the invite page, and opens WhatsApp with the details.
+- No Gmail reading: gmail.readonly is a restricted scope (paid security assessment).
+- Apple Developer account: Manasi has it. Needed for push + TestFlight (EAS build,
+  leaves Expo Go).
+
 ### Calendar decision (27 Oct, reverses 11 Oct)
 
 **Google Calendar, not the iPhone calendar.** iOS won't let an app write to the calendar
