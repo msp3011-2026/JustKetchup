@@ -49,7 +49,7 @@ export async function POST(req: Request, { params }: { params: { token: string }
   // are searched inside it.
   const { data: inviter } = await supabaseAdmin
     .from('users')
-    .select('meet_neighborhood_ids')
+    .select('meet_neighborhood_ids, dietary, cuisines')
     .eq('id', invite.user_id)
     .maybeSingle();
   const allowed: string[] = (inviter as any)?.meet_neighborhood_ids ?? [];
@@ -61,12 +61,19 @@ export async function POST(req: Request, { params }: { params: { token: string }
   const theirs = hood;
   const mine = hood;
 
+  // Your own needs count too: dietary from both of you is a hard filter, and
+  // if your friend doesn't mind what to eat, your favorite cuisines decide.
+  const myDietary: string[] = (inviter as any)?.dietary ?? [];
+  const myCuisines: string[] = (inviter as any)?.cuisines ?? [];
+  const searchDietary = Array.from(new Set(dietary.concat(myDietary)));
+  const searchCuisines = cuisines.length > 0 ? cuisines : myCuisines;
+
   let shortlist: ShortPlace[] = [];
   try {
     const result = await findSpots(
       { lat: mine.lat, lng: mine.lng },
       { lat: theirs.lat, lng: theirs.lng },
-      { dietary, cuisines, limit: 4, at: { start: slot.start, end: slot.end, tz: TZ } }
+      { dietary: searchDietary, cuisines: searchCuisines, limit: 4, at: { start: slot.start, end: slot.end, tz: TZ } }
     );
     shortlist = result.places.map((p) => ({
       id: p.id, name: p.name, address: p.address, mapsUri: p.mapsUri,

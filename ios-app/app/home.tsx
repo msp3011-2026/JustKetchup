@@ -97,20 +97,19 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.header}
+        onPress={() => router.push('/settings/profile')}
+        activeOpacity={0.7}
+      >
         <View style={{ flex: 1 }}>
           <Text style={styles.greeting}>Hi{firstName ? ` ${firstName}` : ''} 👋</Text>
-          <Text style={styles.subtitle}>Here's who you're staying close to.</Text>
+          <Text style={styles.subtitle}>Here&apos;s who you&apos;re staying close to.</Text>
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 10 }}>
-          <TouchableOpacity onPress={() => router.push('/settings/places')} hitSlop={12}>
-            <Text style={styles.signOut}>Your ketchup neighborhoods</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleSignOut} hitSlop={12}>
-            <Text style={styles.signOut}>Sign out</Text>
-          </TouchableOpacity>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{(firstName || '?').charAt(0).toUpperCase()}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {toBook.length > 0 && (
         <View style={styles.toBook}>
@@ -217,6 +216,8 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 26, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: 15, color: colors.muted, marginTop: spacing.xs },
   signOut: { fontSize: 14, color: colors.muted, fontWeight: '600' },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', marginLeft: spacing.md },
+  avatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   card: {
     flexDirection: 'row',
