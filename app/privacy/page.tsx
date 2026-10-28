@@ -1,59 +1,43 @@
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-[#FAFAF7] px-6 py-12 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
-      <p className="text-sm text-gray-400 mb-8">Last updated: April 2026</p>
+    <main className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold text-[#1C1917] mb-2">Privacy Policy</h1>
+      <p className="text-sm text-[#A8A29E] mb-8">Last updated: October 2026</p>
 
-      <div className="space-y-6 text-sm text-gray-700 leading-relaxed">
+      <div className="space-y-6 text-sm text-[#44403C] leading-relaxed">
         <section>
-          <h2 className="font-semibold text-gray-900 mb-2">What HelloAgain is</h2>
-          <p>HelloAgain is a personal social assistant that helps you stay in touch with people who matter. We handle scheduling, venue suggestions, and reminders so you don't have to.</p>
+          <h2 className="font-semibold text-[#1C1917] mb-2">What JustKetchup is</h2>
+          <p>JustKetchup reminds you to catch up with people you care about, finds times you&apos;re free, and suggests places to meet halfway between you and a friend.</p>
         </section>
 
         <section>
-          <h2 className="font-semibold text-gray-900 mb-2">What data we collect</h2>
+          <h2 className="font-semibold text-[#1C1917] mb-2">What we collect</h2>
           <ul className="space-y-1.5 list-disc list-inside">
-            <li>Your name, email address, and phone number</li>
-            <li>Your city, for finding local venues</li>
-            <li>Names and phone numbers of contacts you choose to add</li>
-            <li>Your Google Calendar availability (read-only, to suggest meeting times)</li>
-            <li>Food preferences and scheduling preferences you share with us</li>
+            <li>Your name, email and city, from Google sign-in and what you enter</li>
+            <li>The contacts you choose to add (name, phone number, how often to catch up)</li>
+            <li>Your free/busy times from Google Calendar, used only to suggest times</li>
+            <li>For friends who open an invite: their neighborhood and food preferences, so they aren&apos;t asked again</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="font-semibold text-gray-900 mb-2">How we use your data</h2>
-          <ul className="space-y-1.5 list-disc list-inside">
-            <li>To send you timely nudges via SMS when it's time to reach out to someone</li>
-            <li>To coordinate scheduling with the people you want to meet</li>
-            <li>To suggest venues based on your location and preferences</li>
-            <li>To improve HelloAgain over time</li>
-          </ul>
+          <h2 className="font-semibold text-[#1C1917] mb-2">Google Calendar</h2>
+          <p>With your permission, JustKetchup reads when you&apos;re busy (not what your events are) to suggest free times, and adds confirmed meetups to your calendar. You can revoke access at any time in your Google Account settings.</p>
         </section>
 
         <section>
-          <h2 className="font-semibold text-gray-900 mb-2">What we don't do</h2>
-          <ul className="space-y-1.5 list-disc list-inside">
-            <li>We never sell your data to third parties</li>
-            <li>We never read your emails or messages</li>
-            <li>We only access Google Calendar availability (free/busy) — not event details</li>
-            <li>We don't share your information with advertisers</li>
-          </ul>
+          <h2 className="font-semibold text-[#1C1917] mb-2">Messages</h2>
+          <p>JustKetchup does not send text messages. Invites are sent by you, from your own WhatsApp.</p>
         </section>
 
         <section>
-          <h2 className="font-semibold text-gray-900 mb-2">Third-party services</h2>
-          <p>HelloAgain uses Supabase (database and authentication), Twilio (SMS), Google APIs (contacts and calendar), and Anthropic Claude (AI). Each has their own privacy policy.</p>
+          <h2 className="font-semibold text-[#1C1917] mb-2">Who we share it with</h2>
+          <p>Nobody, except the services that run the app: Supabase (database and sign-in), Vercel (hosting) and Google (calendar and place suggestions). We never sell your data.</p>
         </section>
 
         <section>
-          <h2 className="font-semibold text-gray-900 mb-2">Your rights</h2>
-          <p>You can delete your account and all associated data at any time by contacting us. You can also revoke Google access at any time from your Google Account settings.</p>
-        </section>
-
-        <section>
-          <h2 className="font-semibold text-gray-900 mb-2">Contact</h2>
-          <p>Questions? Email us at <a href="mailto:manasi.iit.madras@gmail.com" className="text-[#2D6A4F] underline">manasi.iit.madras@gmail.com</a></p>
+          <h2 className="font-semibold text-[#1C1917] mb-2">Deleting your data</h2>
+          <p>Email manasi.iit.madras@gmail.com and we&apos;ll delete your account and everything linked to it.</p>
         </section>
       </div>
     </main>
