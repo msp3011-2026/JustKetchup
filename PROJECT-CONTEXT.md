@@ -26,22 +26,34 @@ Pencil, Slot, Link, Kick, Tag, Loop, Clink, Bump.
 
 ---
 
-## 2. The user flow (current design, decided 11 Oct)
+## 2. The user flow (revised 27 Oct — supersedes 11 Oct)
 
 Two people: **Manasi** (has the iOS app) and **Alan** (doesn't, and never needs to).
+**No text messages anywhere in the flow.** The full step-by-step version, with what's
+built, is published as the "JustKetchup User Flow" page.
 
-1. **Nudge day** — push notification to Manasi: *"It's been 3 months since Alan.
-   Reach out?"*
-2. **Slot confirmation** — the app reads Manasi's device calendar, shows free times,
-   she confirms which to offer. A confirmation step, not an open question.
-3. **Personal message** — the app drafts a message; **Manasi sends it from her own
-   Messages app, from her own number**, so it's recognisably from a friend. It
-   contains a justketchup.at link.
-4. **Alan opens the link** — a plain web page, no app install. He picks his
-   neighborhood and food preferences (saved for next time), then a specific time.
-5. **Alan picks the venue** — from live suggestions between them. He chooses; the app
-   never picks for him.
-6. **Confirmation** to both, with calendar files.
+1. **Nudge** — push to Manasi: *"It's been 3 months since Alan. Ketchup?"* Tapping opens
+   Alan in the app: Ketchup with Alan / Snooze / We already met.
+2. **Pick times** — the app shows her free times from **Google Calendar**; she ticks 3–4.
+3. **Send on WhatsApp** — the app opens WhatsApp straight into her chat with Alan
+   (`wa.me/<phone>?text=…`) with the warm pre-written message and link already typed.
+   She reviews and sends it herself. The app then shows "Waiting on Alan".
+4. **Alan opens the link** — plain web page, no install. Neighborhood + food prefs
+   (saved for next time), then a time (or suggests others), then a venue, then confirm.
+5. **Back to Manasi** — on confirmation the server adds the meetup to her **Google
+   Calendar automatically**, whether or not she opens anything, then pushes
+   "Alan picked Thu 7pm at Ozakaya". Tapping it is optional.
+6. **No reply** — reminder after a few days (Remind him / Cancel); expires at 14 days
+   and Alan goes back into her nudges.
+
+### Calendar decision (27 Oct, reverses 11 Oct)
+
+**Google Calendar, not the iPhone calendar.** iOS won't let an app write to the calendar
+while it's closed, so "added automatically when Alan confirms" is only possible
+server-side. Needs Google calendar scope at sign-in with offline access, and the refresh
+token stored server-side. Gotcha: while the Google OAuth app is in "Testing" status,
+refresh tokens expire after 7 days — publish it (unverified is fine for <100 users, with
+a warning screen) before beta.
 
 ### Why this shape
 
@@ -79,8 +91,7 @@ Free, instant, no carrier registration.
 - **No push notifications at all.** Needs a development build (`expo-dev-client`,
   `npx expo run:ios`) plus an APNs key — `expo-notifications` dropped push support in
   Expo Go as of SDK 53. Needs the Apple Developer account.
-- **No calendar reading.** Step 2 above is designed but not built. Decision made:
-  device calendar via `expo-calendar`, not Google Calendar.
+- **No calendar reading or writing.** Decision (27 Oct): Google Calendar, server-side.
 - **No reservations.** Deliberately deferred — OpenTable and Resy are partner-gated
   (apply, get approved, sign a contract; no self-serve keys). ChatGPT, Gemini, Alexa+
   and Perplexity can book because those companies signed deals, not because the API is
@@ -331,7 +342,7 @@ real files stay stale. Always read the file list GitHub shows before committing.
 
 ### Copy rules
 
-- **Messages from the user to their friend must be long and warm, with niceties.** "Real
+- **WhatsApp messages from the user to their friend must be long and warm, with niceties.** "Real
   people talk with more words, not efficiency." Short, efficient copy was rejected twice.
 - **The invite web page is playful and leans on the name.** *"You and Manasi are overdue
   a ketchup."*
@@ -345,9 +356,9 @@ real files stay stale. Always read the file list GitHub shows before committing.
 ## 12. What to build next, in order
 
 1. **iOS app creates invites.** Generate a token, pick slots, write the `invites` row,
-   draft the message, open the iOS share sheet so she sends it from her own Messages.
+   draft the message, open WhatsApp to Alan's chat with it pre-filled so she sends it herself.
    This closes the loop.
-2. **Calendar reading** via `expo-calendar` to populate those slots automatically.
+2. **Google Calendar** — read free times for the slots; write the meetup on confirmation.
 3. **Notify the user when the contact confirms.** Needs push, needs a development build,
    needs the Apple Developer account.
 4. **Deploy the nudge engine** — the daily cron that decides who's due and sends the
