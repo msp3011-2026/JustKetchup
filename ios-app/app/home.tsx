@@ -104,7 +104,7 @@ export default function Home() {
         </View>
         <View style={{ alignItems: 'flex-end', gap: 10 }}>
           <TouchableOpacity onPress={() => router.push('/settings/places')} hitSlop={12}>
-            <Text style={styles.signOut}>Where I meet</Text>
+            <Text style={styles.signOut}>Your ketchup neighborhoods</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleSignOut} hitSlop={12}>
             <Text style={styles.signOut}>Sign out</Text>

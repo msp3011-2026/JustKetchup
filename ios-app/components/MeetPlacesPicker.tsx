@@ -6,7 +6,7 @@ import { colors, spacing } from '../lib/theme';
 type Hood = { id: string; name: string };
 
 /**
- * "Where are you happy to meet?" — the neighborhoods you're open to. Friends
+ * "Your preferred neighborhoods to ketchup" — the neighborhoods you're open to. Friends
  * pick one of these on the invite page, and restaurants are found inside it.
  */
 export default function MeetPlacesPicker({
@@ -46,7 +46,7 @@ export default function MeetPlacesPicker({
 
   async function save() {
     if (picked.length === 0) {
-      return Alert.alert('Pick at least one', 'Choose the neighborhoods you’re happy to meet in.');
+      return Alert.alert('Pick at least one', 'Choose a neighborhood or two you’d love to ketchup in.');
     }
     setSaving(true);
     try {
@@ -69,10 +69,10 @@ export default function MeetPlacesPicker({
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Where are you happy to meet?</Text>
+        <Text style={styles.title}>Your preferred neighborhoods to ketchup</Text>
         <Text style={styles.body}>
-          Pick the neighborhoods that are easy for you. Your friends choose one of these, and we find
-          restaurants there.
+          The spots that are easy for you to get to. When you invite a friend, they pick one of these
+          and we find great places to eat there.
         </Text>
         <View style={styles.chips}>
           {hoods.map((h) => {

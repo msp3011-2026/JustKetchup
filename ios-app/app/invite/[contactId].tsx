@@ -192,10 +192,10 @@ export default function NewInvite() {
         {!hasMeetPlaces && (
           <View style={styles.notice}>
             <Text style={styles.noticeText}>
-              Choose the neighborhoods you&apos;re happy to meet in. {first} picks one of them.
+              Pick a few neighborhoods you like to ketchup in, and {first} can choose the one that works best for them.
             </Text>
             <TouchableOpacity onPress={() => router.push('/settings/places')}>
-              <Text style={styles.link}>Choose neighborhoods</Text>
+              <Text style={styles.link}>Pick your neighborhoods</Text>
             </TouchableOpacity>
           </View>
         )}
