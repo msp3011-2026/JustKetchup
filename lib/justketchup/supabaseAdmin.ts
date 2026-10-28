@@ -28,6 +28,10 @@ function getClient(): SupabaseClient {
 
   client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // Next.js caches fetch() responses on the server. Without this, a database
+    // read could return an old answer (an invite still 'sent' after it was
+    // confirmed). Every query must hit the database.
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
   });
   return client;
 }
