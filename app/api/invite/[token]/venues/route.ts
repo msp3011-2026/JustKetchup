@@ -17,10 +17,11 @@ export async function POST(req: Request, { params }: { params: { token: string }
 
   const dietary: string[] = Array.isArray(body.dietary) ? body.dietary : [];
   const cuisines: string[] = Array.isArray(body.cuisines) ? body.cuisines : [];
+  const slot = body.slot && typeof body.slot.start === 'string' ? body.slot : null;
 
   const { data: invite } = await supabaseAdmin
     .from('invites')
-    .select('id, user_id, contact_id, expires_at')
+    .select('id, user_id, contact_id, expires_at, slots')
     .eq('token', token)
     .maybeSingle();
 
@@ -61,7 +62,18 @@ export async function POST(req: Request, { params }: { params: { token: string }
     const result = await findSpots(
       { lat: inviterHood.lat, lng: inviterHood.lng },
       { lat: sarahHood.lat, lng: sarahHood.lng },
-      { dietary, cuisines, limit: 3 }
+      {
+        dietary,
+        cuisines,
+        limit: 3,
+        // Only places open for the chosen time. Must be one of the offered slots.
+        at: (() => {
+          const offered = ((invite.slots as any[]) ?? []).find((x) => slot && x.start === slot.start);
+          if (!offered) return undefined;
+          const end = offered.end ?? new Date(new Date(offered.start).getTime() + 90 * 60000).toISOString();
+          return { start: offered.start, end, tz: 'America/New_York' };
+        })(),
+      }
     );
     const spots = result.places;
 
@@ -78,6 +90,7 @@ export async function POST(req: Request, { params }: { params: { token: string }
           reviews: p.reviews,
           price_level: p.priceLevel,
           maps_uri: p.mapsUri,
+          reservable: p.reservable,
           cached_at: new Date().toISOString(),
         })),
         { onConflict: 'place_id' }
@@ -85,7 +98,8 @@ export async function POST(req: Request, { params }: { params: { token: string }
     }
 
     return NextResponse.json({
-      venues: spots,
+      // Opening hours stay on the server; the page doesn't need them.
+      venues: spots.map(({ periods, ...rest }) => rest),
       debug: { fetched: result.fetched, qualifying: result.qualifying },
     });
   } catch (e: any) {

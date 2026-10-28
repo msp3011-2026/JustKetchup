@@ -12,6 +12,7 @@ type Place = {
   reviews: number;
   priceLevel: string | null;
   mapsUri: string | null;
+  reservable?: boolean | null;
 };
 
 const DIETARY = [
@@ -148,7 +149,7 @@ export default function InviteFlow({ token }: { token: string }) {
       const r = await fetch(`/api/invite/${token}/venues`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ neighborhoodId: hoodId, dietary, cuisines }),
+        body: JSON.stringify({ neighborhoodId: hoodId, dietary, cuisines, slot: next }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -308,7 +309,7 @@ export default function InviteFlow({ token }: { token: string }) {
         <>
           <h2 style={s.h2}>Where to?</h2>
           <p style={s.body}>
-            All well reviewed, all roughly in the middle
+            All well reviewed, open at that time, roughly in the middle
             {dietary.length > 0 && ', and all sorted for what you eat'}.
           </p>
           {places.map((p) => (
@@ -317,6 +318,7 @@ export default function InviteFlow({ token }: { token: string }) {
               <span style={s.optionSub}>
                 ★ {p.rating} · {p.reviews.toLocaleString()} reviews
                 {p.priceLevel && ` · ${PRICE_LABEL[p.priceLevel] ?? ''}`}
+                {p.reservable && ' · Takes reservations'}
               </span>
               <span style={s.optionAddr}>{p.address}</span>
             </button>
@@ -339,7 +341,7 @@ export default function InviteFlow({ token }: { token: string }) {
 
       {step === 'done' && slot && place && (
         <>
-          <p style={s.kicker}>Sorted</p>
+          <p style={s.kicker}>You&apos;re all set</p>
           <h1 style={s.h1}>
             {place.name}, {fmtSlot(slot.start).day}.
           </h1>
@@ -348,7 +350,7 @@ export default function InviteFlow({ token }: { token: string }) {
           <button style={s.btn} onClick={downloadIcs}>Add to my calendar</button>
           {place.mapsUri && (
             <a style={s.btnGhost} href={place.mapsUri} target="_blank" rel="noreferrer">
-              View on Google Maps
+              {place.reservable ? 'Reserve a table on Google Maps' : 'View on Google Maps'}
             </a>
           )}
           <button style={{ ...s.editLink, display: 'block', margin: '20px auto 0', fontSize: 14 }} onClick={() => { setPlace(null); setStep('time'); }}>

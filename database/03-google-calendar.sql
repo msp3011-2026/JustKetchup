@@ -20,3 +20,6 @@ alter table public.users
 -- Remember which calendar event belongs to an invite (for later edits/cancels).
 alter table public.invites
   add column if not exists calendar_event_id text;
+
+-- 28 Oct: whether Google says the place takes reservations (null = unknown).
+alter table public.venue_cache add column if not exists reservable boolean;

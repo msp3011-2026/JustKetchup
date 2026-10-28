@@ -55,7 +55,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
     const { data: v } = invite.chosen_place_id
       ? await supabaseAdmin
           .from('venue_cache')
-          .select('place_id, name, address, rating, reviews, price_level, maps_uri')
+          .select('place_id, name, address, rating, reviews, price_level, maps_uri, reservable')
           .eq('place_id', invite.chosen_place_id)
           .maybeSingle()
       : { data: null };
@@ -70,6 +70,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
             reviews: v.reviews ?? 0,
             priceLevel: v.price_level ?? null,
             mapsUri: v.maps_uri ?? null,
+            reservable: v.reservable ?? null,
           }
         : null,
     };

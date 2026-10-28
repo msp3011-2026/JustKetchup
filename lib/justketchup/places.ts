@@ -21,7 +21,15 @@ export type Place = {
   priceLevel: string | null;
   types: string[];
   mapsUri: string | null;
+  /** Google's "takes reservations" flag. null = Google doesn't know. */
+  reservable: boolean | null;
+  /** Weekly opening hours from Google; empty when Google has none. */
+  periods: Period[];
 };
+
+type HM = { day: number; hour: number; minute: number };
+export type Period = { open: HM; close?: HM };
+
 
 const MIN_RATING = 4.5;
 const MIN_REVIEWS = 500;
@@ -103,6 +111,8 @@ async function nearby(centre: Coords, radiusM: number, includedTypes: string[]):
         'places.priceLevel',
         'places.types',
         'places.googleMapsUri',
+        'places.reservable',
+        'places.regularOpeningHours.periods',
       ].join(','),
     },
     body: JSON.stringify({
@@ -133,7 +143,44 @@ async function nearby(centre: Coords, radiusM: number, includedTypes: string[]):
     priceLevel: p.priceLevel ?? null,
     types: p.types ?? [],
     mapsUri: p.googleMapsUri ?? null,
+    reservable: typeof p.reservable === 'boolean' ? p.reservable : null,
+    periods: (p.regularOpeningHours?.periods ?? []) as Period[],
   }));
+}
+
+const WEEK = 7 * 1440;
+
+// Minute of the week (Sunday 00:00 = 0) for an instant, in the city's time zone.
+function minuteOfWeek(iso: string, tz: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hourCycle: 'h23', weekday: 'short', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => parts.filter((x) => x.type === t)[0]?.value ?? '';
+  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday'));
+  return day * 1440 + Number(get('hour')) * 60 + Number(get('minute'));
+}
+
+/**
+ * Is the place open for the whole meetup? true / false, or null when Google
+ * has no hours for it (unknown places are kept rather than dropped).
+ */
+export function openDuring(periods: Period[], startIso: string, endIso: string, tz: string): boolean | null {
+  if (!periods || periods.length === 0) return null;
+  // A single period with no close time means open 24/7.
+  if (periods.length === 1 && !periods[0].close) return true;
+  const s = minuteOfWeek(startIso, tz);
+  let e = minuteOfWeek(endIso, tz);
+  if (e < s) e += WEEK;
+  for (const p of periods) {
+    if (!p.close) continue;
+    const o = p.open.day * 1440 + p.open.hour * 60 + p.open.minute;
+    let c = p.close.day * 1440 + p.close.hour * 60 + p.close.minute;
+    if (c <= o) c += WEEK; // closes after midnight Saturday → wraps the week
+    for (const shift of [0, WEEK, -WEEK]) {
+      if (s + shift >= o && e + shift <= c) return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -161,7 +208,13 @@ export type SpotResult = {
 export async function findSpots(
   a: Coords,
   b: Coords,
-  opts: { dietary?: string[]; cuisines?: string[]; limit?: number } = {}
+  opts: {
+    dietary?: string[];
+    cuisines?: string[];
+    limit?: number;
+    /** The meetup time: only places open for all of it are suggested. */
+    at?: { start: string; end: string; tz: string };
+  } = {}
 ): Promise<SpotResult> {
   const dietary = opts.dietary ?? [];
   const cuisines = opts.cuisines ?? [];
@@ -181,6 +234,14 @@ export async function findSpots(
 
   const seen = new Map<string, Place>();
 
+  // Hard filters on top of the quality bar:
+  //  - open for the whole meetup, if Google has hours for the place
+  //  - not a walk-in-only place (Google says it doesn't take reservations)
+  const at = opts.at;
+  const usable = (p: Place) =>
+    p.reservable !== false &&
+    (!at || openDuring(p.periods, at.start, at.end, at.tz) !== false);
+
   const RADII = [1500, 3000, 5000];
   for (let i = 0; i < RADII.length; i++) {
     let batch: Place[] = [];
@@ -197,6 +258,7 @@ export async function findSpots(
 
     const qualifying = Array.from(seen.values()).filter(
       (p) =>
+        usable(p) &&
         p.rating >= MIN_RATING &&
         p.reviews >= MIN_REVIEWS &&
         (p.priceLevel === null || AFFORDABLE.has(p.priceLevel))
@@ -206,6 +268,7 @@ export async function findSpots(
 
   let pool = Array.from(seen.values()).filter(
     (p) =>
+      usable(p) &&
       p.rating >= MIN_RATING &&
       p.reviews >= MIN_REVIEWS &&
       (p.priceLevel === null || AFFORDABLE.has(p.priceLevel))
@@ -215,7 +278,7 @@ export async function findSpots(
   // a 4.7 with 300 reviews is a better suggestion than a 4.2 with 2000.
   if (pool.length === 0) {
     pool = Array.from(seen.values()).filter(
-      (p) => p.rating >= MIN_RATING && (p.priceLevel === null || AFFORDABLE.has(p.priceLevel))
+      (p) => usable(p) && p.rating >= MIN_RATING && (p.priceLevel === null || AFFORDABLE.has(p.priceLevel))
     );
   }
 
@@ -231,7 +294,9 @@ export async function findSpots(
       imbalance * 0.8 -
       (p.rating - MIN_RATING) * 4 -
       Math.min(p.reviews / 2000, 1) * 1.5 -
-      cuisineHit * 2;
+      cuisineHit * 2 -
+      // Confirmed bookable beats "Google doesn't know".
+      (p.reservable === true ? 1.5 : 0);
 
     return { p, score };
   });
