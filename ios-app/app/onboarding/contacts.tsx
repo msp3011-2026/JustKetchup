@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Contacts from 'expo-contacts';
+import * as Contacts from 'expo-contacts/legacy';
 import { useRouter } from 'expo-router';
 import { normalizePhone } from '../../lib/tiers';
 import { setSelectedContacts, type PickedContact } from '../../lib/store';

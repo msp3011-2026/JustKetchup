@@ -116,11 +116,20 @@ export default function Home() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardName}>{item.name}</Text>
-                <Text style={[styles.cardDue, urgent && styles.cardDueUrgent]}>{due}</Text>
+                <Text style={styles.cardDue}>
+                  <Text style={urgent ? styles.cardDueUrgent : undefined}>{due}</Text>
+                  {'  ·  '}
+                  {tierLabel(item.tier)}
+                </Text>
               </View>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{tierLabel(item.tier)}</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.ketchup}
+                onPress={() => router.push(`/invite/${item.id}`)}
+                hitSlop={8}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.ketchupText}>Ketchup</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
           );
         }}
@@ -175,6 +184,14 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 16, fontWeight: '600', color: colors.text },
   cardDue: { fontSize: 13, color: colors.muted, marginTop: 2 },
   cardDueUrgent: { color: colors.primary, fontWeight: '600' },
+  ketchup: {
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    marginLeft: spacing.sm,
+  },
+  ketchupText: { color: colors.primaryText, fontSize: 14, fontWeight: '700' },
   badge: {
     backgroundColor: colors.bg,
     borderWidth: 1,

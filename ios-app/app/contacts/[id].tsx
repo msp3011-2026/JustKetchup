@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteContact, getContact, updateContact } from '../../lib/contacts';
 import { normalizePhone, type TierValue } from '../../lib/tiers';
@@ -44,6 +44,7 @@ export default function EditContact() {
   const [tier, setTier] = useState<TierValue>('friendly');
   const [nextNudge, setNextNudge] = useState<string | null>(null);
   const [latest, setLatest] = useState<LatestInvite | null>(null);
+  const [original, setOriginal] = useState<{ name: string; phone: string; tier: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +61,7 @@ export default function EditContact() {
         setPhone(c.phone);
         setTier((c.tier as TierValue) ?? 'friendly');
         setNextNudge(c.next_nudge_date);
+        setOriginal({ name: c.name, phone: c.phone, tier: String(c.tier ?? 'friendly') });
         const { data: inv } = await supabase
           .from('invites')
           .select('status, chosen_slot, expires_at')
@@ -96,6 +98,18 @@ export default function EditContact() {
     }
   }
 
+  const dirty =
+    original !== null &&
+    (name !== original.name || phone !== original.phone || tier !== original.tier);
+
+  function goBack() {
+    if (!dirty) return router.back();
+    Alert.alert('Discard changes?', 'You have edits that aren’t saved.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+    ]);
+  }
+
   function handleDelete() {
     Alert.alert(`Remove ${name}?`, 'They will stop appearing in your nudges.', [
       { text: 'Cancel', style: 'cancel' },
@@ -124,6 +138,18 @@ export default function EditContact() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <Stack.Screen
+        options={{
+          title: name.split(' ')[0] || 'Contact',
+          headerBackVisible: false,
+          gestureEnabled: !dirty,
+          headerLeft: () => (
+            <TouchableOpacity onPress={goBack} hitSlop={12}>
+              <Text style={styles.back}>‹ All contacts</Text>
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -173,6 +199,7 @@ export default function EditContact() {
             <Text style={styles.meta}>Next nudge scheduled for {nextNudge}</Text>
           )}
 
+          {dirty && (
           <TouchableOpacity
             style={[styles.button, saving && styles.buttonDisabled]}
             onPress={handleSave}
@@ -185,6 +212,7 @@ export default function EditContact() {
               <Text style={styles.buttonText}>Save changes</Text>
             )}
           </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} activeOpacity={0.8}>
             <Text style={styles.deleteButtonText}>Remove contact</Text>
@@ -211,6 +239,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  back: { fontSize: 17, color: colors.primary, fontWeight: '600' },
   meta: { fontSize: 13, color: colors.muted, marginBottom: spacing.lg },
   status: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: spacing.md, marginBottom: spacing.md },
   statusText: { fontSize: 15, color: colors.text },

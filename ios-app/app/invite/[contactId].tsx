@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getContact, type Contact } from '../../lib/contacts';
 import { api } from '../../lib/api';
@@ -28,20 +28,26 @@ function fmt(iso: string) {
   };
 }
 
-// Long and warm on purpose: it is sent from Manasi's own WhatsApp, in her voice.
+// Short and warm: it is sent from Manasi's own WhatsApp, in her voice.
 function draftMessage(firstName: string, url: string) {
-  return (
-    `Hey ${firstName}! How have you been? It feels like it's been way too long since we properly caught up, ` +
-    `and I'd really love to see you. I've put together a few times that work on my end. ` +
-    `Pick whichever one works best for you, and choose a spot somewhere in between us here:\n\n${url}\n\n` +
-    `No pressure at all if none of them work, just let me know and we'll figure out another time. ` +
-    `Hope you're doing well, and I can't wait to catch up!`
-  );
+  return `Hey ${firstName}! How have you been? It's been way too long, I'd love to catch up. Pick a time and a spot that works for you here:\n\n${url}`;
 }
 
 function whatsappUrl(phoneE164: string, text: string) {
   const digits = phoneE164.replace(/[^\d]/g, '');
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
+
+function Header({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={onBack} hitSlop={12}>
+        <Text style={styles.back}>‹ Back</Text>
+      </TouchableOpacity>
+      <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+      <View style={{ width: 56 }} />
+    </View>
+  );
 }
 
 export default function NewInvite() {
@@ -123,8 +129,7 @@ export default function NewInvite() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.center} edges={['bottom']}>
-        <Stack.Screen options={{ headerShown: true, title: 'Ketchup' }} />
+      <SafeAreaView style={styles.center} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.muted}>Checking your calendar…</Text>
       </SafeAreaView>
@@ -133,20 +138,22 @@ export default function NewInvite() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.center} edges={['bottom']}>
-        <Stack.Screen options={{ headerShown: true, title: 'Ketchup' }} />
+      <SafeAreaView style={styles.center} edges={['top', 'bottom']}>
         <Text style={styles.h2}>Couldn’t load your free times</Text>
         <Text style={styles.error}>{loadError}</Text>
         <TouchableOpacity style={styles.button} onPress={load}>
           <Text style={styles.buttonText}>Try again</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+          <Text style={styles.link}>Go back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ headerShown: true, title: `Ketchup with ${first}` }} />
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <Header title={`Ketchup with ${first}`} onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.container}>
         {connected === false && (
           <View style={styles.notice}>
@@ -215,8 +222,11 @@ export default function NewInvite() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  back: { fontSize: 17, color: colors.primary, fontWeight: '600', width: 56 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: colors.text },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg, gap: spacing.md, backgroundColor: colors.bg },
-  container: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
+  container: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl * 2 },
   h2: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: spacing.md, marginBottom: spacing.xs },
   muted: { fontSize: 14, color: colors.muted, marginBottom: spacing.md },
   error: { fontSize: 14, color: colors.danger, textAlign: 'center' },
