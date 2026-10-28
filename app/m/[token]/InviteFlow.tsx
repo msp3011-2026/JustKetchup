@@ -54,20 +54,6 @@ function fmtSlot(iso: string) {
   };
 }
 
-// Opens ChatGPT with the booking request already written and sent. The person
-// finishes it in their own ChatGPT (signed in; ChatGPT books through Resy and OpenTable), so the
-// booking is theirs; JustKetchup never books on anyone's behalf.
-function chatgptBookingUrl(place: Place, slot: Slot) {
-  const d = new Date(slot.start);
-  const day = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
-  const prompt =
-    `Book a table for 2 at ${place.name}` +
-    (place.address ? ` (${place.address})` : '') +
-    ` on ${day} at ${time}, using Resy or OpenTable, whichever the restaurant is on. If that time isn't available, show me the closest times.`;
-  return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
-}
-
 function icsFor(slot: Slot, placeName: string, withWhom: string) {
   const start = new Date(slot.start);
   const end = slot.end ? new Date(slot.end) : new Date(start.getTime() + 90 * 60000);
@@ -84,7 +70,7 @@ function icsFor(slot: Slot, placeName: string, withWhom: string) {
 export default function InviteFlow({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [step, setStep] = useState<'hello' | 'details' | 'time' | 'place' | 'done'>('hello');
+  const [step, setStep] = useState<'hello' | 'details' | 'time' | 'place' | 'waiting' | 'done'>('hello');
 
   const [inviterName, setInviterName] = useState('');
   const [contactName, setContactName] = useState('');
@@ -104,6 +90,8 @@ export default function InviteFlow({ token }: { token: string }) {
   const [pendingSlot, setPendingSlot] = useState<Slot | null>(null);
   const [place, setPlace] = useState<Place | null>(null);
   const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState('');
+  const [shortlist, setShortlist] = useState<Place[]>([]);
   // Offered times that clash with the friend's Google Calendar, once checked.
   const [calBusy, setCalBusy] = useState<string[] | null>(null);
   const [calNote, setCalNote] = useState<string | null>(null);
@@ -135,6 +123,12 @@ export default function InviteFlow({ token }: { token: string }) {
           setStep('done');
         }
         if (d.friendCalendar?.busy) setCalBusy(d.friendCalendar.busy);
+        if (d.savedProfile?.email) setEmail(d.savedProfile.email);
+        if (d.status === 'booking' && d.pending?.slot) {
+          setSlot(d.pending.slot);
+          setShortlist(d.pending.shortlist ?? []);
+          setStep('waiting');
+        }
         const hasProfile = Boolean(d.savedProfile?.neighborhood_id);
         if (hasProfile) {
           setKnown(true);
@@ -164,7 +158,38 @@ export default function InviteFlow({ token }: { token: string }) {
   // Returning guests skip straight to picking a time — their saved details
   // show as an editable summary rather than a question they must re-answer.
   function start() {
-    setStep(known ? 'time' : 'details');
+    setStep('time');
+  }
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+
+  // Last step: send time + food + email. The inviter books from the shortlist.
+  async function submitRequest() {
+    if (!slot) return setStep('time');
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch(`/api/invite/${token}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot, neighborhoodId: hoodId, dietary, cuisines, email: email.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setErr(
+          d.error === 'no_places'
+            ? 'Nothing nearby matched everything at that time. Try fewer food filters or another time.'
+            : d.detail ? `${d.error}: ${d.detail}` : (d.error ?? `HTTP ${r.status}`)
+        );
+        return;
+      }
+      setShortlist(d.shortlist ?? []);
+      setStep('waiting');
+    } catch (e: any) {
+      setErr(String(e?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function loadPlaces(next: Slot) {
@@ -247,7 +272,7 @@ export default function InviteFlow({ token }: { token: string }) {
             ketchup.
           </h1>
           <p style={s.body}>
-            Pick a time that works and somewhere good to eat. That&apos;s the whole job.
+            Pick a time and tell us what you feel like eating. We&apos;ll handle the rest.
           </p>
           <button style={s.btn} onClick={start}>Let&apos;s ketchup</button>
         </>
@@ -255,6 +280,12 @@ export default function InviteFlow({ token }: { token: string }) {
 
       {step === 'details' && (
         <>
+          {slot && (
+            <div style={s.summary}>
+              <span style={s.summaryText}>{fmtSlot(slot.start).day} at {fmtSlot(slot.start).time}</span>
+              <button style={s.editLink} onClick={() => setStep('time')}>Change</button>
+            </div>
+          )}
           <h2 style={s.h2}>Whereabouts are you these days?</h2>
           <p style={s.body}>
             So we can land on somewhere in the middle, instead of one of you trekking across town.
@@ -283,12 +314,25 @@ export default function InviteFlow({ token }: { token: string }) {
             ))}
           </div>
 
+          <h3 style={s.h3}>Your email</h3>
+          <p style={s.fine2}>We need it to send you the reservation details.</p>
+          <input
+            style={s.input}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          {err && <p style={s.error}>{err}</p>}
           <button
-            style={{ ...s.btn, opacity: hoodId ? 1 : 0.5 }}
-            disabled={!hoodId}
-            onClick={() => setStep('time')}
+            style={{ ...s.btn, opacity: hoodId && emailOk && !busy ? 1 : 0.5 }}
+            disabled={!hoodId || !emailOk || busy}
+            onClick={submitRequest}
           >
-            Next
+            {busy ? 'Finding places near you both…' : 'Find us a table'}
           </button>
         </>
       )}
@@ -308,12 +352,6 @@ export default function InviteFlow({ token }: { token: string }) {
           )}
           {calNote && <p style={s.error}>{calNote}</p>}
 
-          {summary && (
-            <div style={s.summary}>
-              <span style={s.summaryText}>{summary}</span>
-              <button style={s.editLink} onClick={() => setStep('details')}>Edit</button>
-            </div>
-          )}
 
           {slots.map((sl) => {
             const f = fmtSlot(sl.start);
@@ -327,7 +365,7 @@ export default function InviteFlow({ token }: { token: string }) {
                   opacity: busy && !chosen ? 0.4 : 1,
                 }}
                 disabled={busy}
-                onClick={() => loadPlaces(sl)}
+                onClick={() => { setSlot(sl); setErr(null); setStep('details'); }}
               >
                 <span style={s.optionMain}>{f.day}</span>
                 <span style={chosen && busy ? s.optionSubActive : s.optionSub}>
@@ -380,6 +418,35 @@ export default function InviteFlow({ token }: { token: string }) {
         </>
       )}
 
+      {step === 'waiting' && slot && (
+        <>
+          <p style={s.kicker}>Almost there</p>
+          <h1 style={s.h1}>{inviterName} is booking a table near both of you.</h1>
+          <p style={s.body}>
+            {fmtSlot(slot.start).day} at {fmtSlot(slot.start).time}. A calendar invite is on its way
+            {email ? ` to ${email}` : ''}, and it will update with the restaurant once it&apos;s booked.
+          </p>
+          {shortlist.length > 0 && (
+            <>
+              <h3 style={s.h3}>It&apos;ll be one of these</h3>
+              {shortlist.map((p) => (
+                <div key={p.id} style={s.option}>
+                  <span style={s.optionMain}>{p.name}</span>
+                  <span style={s.optionSub}>
+                    ★ {p.rating} · {p.reviews.toLocaleString()} reviews
+                    {p.priceLevel && ` · ${PRICE_LABEL[p.priceLevel] ?? ''}`}
+                  </span>
+                  <span style={s.optionAddr}>{p.address}</span>
+                </div>
+              ))}
+            </>
+          )}
+          <button style={{ ...s.editLink, display: 'block', margin: '20px auto 0', fontSize: 14 }} onClick={() => setStep('time')}>
+            Change the time
+          </button>
+        </>
+      )}
+
       {step === 'done' && slot && place && (
         <>
           <p style={s.kicker}>You&apos;re all set</p>
@@ -389,19 +456,11 @@ export default function InviteFlow({ token }: { token: string }) {
           <p style={s.body}>{fmtSlot(slot.start).time}</p>
           <p style={s.muted}>{place.address}</p>
           <button style={s.btn} onClick={downloadIcs}>Add to my calendar</button>
-          {place.reservable && (
-            <a style={s.btnGhost} href={chatgptBookingUrl(place, slot)} target="_blank" rel="noreferrer">
-              Book it with ChatGPT
-            </a>
-          )}
-          {place.mapsUri && !place.reservable && (
+          {place.mapsUri && (
             <a style={s.btnGhost} href={place.mapsUri} target="_blank" rel="noreferrer">
               View on Google Maps
             </a>
           )}
-          <button style={{ ...s.editLink, display: 'block', margin: '20px auto 0', fontSize: 14 }} onClick={() => { setPlace(null); setStep('time'); }}>
-            Change time or place
-          </button>
         </>
       )}
     </Shell>
@@ -437,6 +496,8 @@ const s: Record<string, React.CSSProperties> = {
   summaryText: { flex: 1, fontSize: 13, color: '#57534E', lineHeight: 1.4 },
   editLink: { background: 'none', border: 'none', color: '#EA580C', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 },
   fine: { fontSize: 13, color: '#78716C', marginTop: 16, textAlign: 'center' },
+  fine2: { fontSize: 13, color: '#78716C', margin: '-4px 0 8px' },
+  input: { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 16, borderRadius: 12, border: '1px solid #E7E5E4', background: '#fff', marginBottom: 16 },
   calButton: { display: 'block', padding: '12px 16px', marginBottom: 16, borderRadius: 12, border: '1px solid #EA580C', color: '#EA580C', fontSize: 15, fontWeight: 600, textDecoration: 'none', background: '#FFF7ED' },
   calSub: { display: 'block', fontSize: 12, fontWeight: 400, color: '#78716C', marginTop: 2 },
   calDone: { fontSize: 13, color: '#15803D', margin: '0 0 12px' },

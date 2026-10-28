@@ -27,6 +27,9 @@ function inviteLine(inv: LatestInvite, first: string): string | null {
     if (d.getTime() < Date.now()) return null;
     return `You're meeting ${first} on ${d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`;
   }
+  if (inv.status === 'booking') {
+    return `${first} picked a time. Ready to book — see Home.`;
+  }
   if (inv.status === 'sent' && (!inv.expires_at || new Date(inv.expires_at) > new Date())) {
     return `Waiting on ${first} to pick a time and place.`;
   }

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, AppState, View, StyleSheet } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { colors } from '../lib/theme';
+import { registerForPush } from '../lib/push';
+import { api } from '../lib/api';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -87,6 +90,32 @@ export default function RootLayout() {
       router.replace('/home');
     }
   }, [authLoading, session, onboarded, segments]);
+
+  // 4. Once signed in: register for push, and look for new bookings in the
+  //    calendar now and every time the app comes back to the front (e.g. after
+  //    booking in ChatGPT).
+  useEffect(() => {
+    if (!session || onboarded !== true) return;
+    registerForPush();
+    const check = () => api('/api/me/check-bookings', { method: 'POST' }).catch(() => {});
+    check();
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') check();
+    });
+    return () => sub.remove();
+  }, [session?.user?.id, onboarded]);
+
+  // 5. Tapping "Shuchi picked Sat 7 PM, ready to book" opens that booking.
+  useEffect(() => {
+    if (!session || onboarded !== true) return;
+    const open = (r: Notifications.NotificationResponse | null) => {
+      const id = (r?.notification.request.content.data as any)?.inviteId;
+      if (id) router.push(`/booking/${id}`);
+    };
+    Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    return () => sub.remove();
+  }, [session?.user?.id, onboarded]);
 
   if (authLoading) {
     return (

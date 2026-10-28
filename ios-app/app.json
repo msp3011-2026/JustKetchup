@@ -13,7 +13,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.msp3011.justketchup",
       "infoPlist": {
-        "NSContactsUsageDescription": "JustKetchup uses your contacts so you can choose the people you want to stay in touch with. Your contacts are never shared."
+        "NSContactsUsageDescription": "JustKetchup uses your contacts so you can choose the people you want to stay in touch with. Your contacts are never shared.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -28,6 +29,12 @@
         "expo-contacts",
         {
           "contactsPermission": "JustKetchup uses your contacts so you can choose the people you want to stay in touch with."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#EA580C"
         }
       ]
     ],

@@ -49,48 +49,7 @@ export async function busyTimes(accessToken: string, timeMin: string, timeMax: s
   return (d.calendars?.primary?.busy ?? []) as Interval[];
 }
 
-export async function createEvent(
-  accessToken: string,
-  ev: { summary: string; location?: string; description?: string; start: string; end: string }
-): Promise<string> {
-  const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: ev.summary,
-      location: ev.location,
-      description: ev.description,
-      start: { dateTime: ev.start },
-      end: { dateTime: ev.end },
-    }),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`google_create_event_failed: ${d.error?.message ?? r.status}`);
-  return d.id as string;
-}
 
-// Moves an existing event (used when the friend changes the time or place).
-export async function updateEvent(
-  accessToken: string,
-  eventId: string,
-  ev: { summary: string; location?: string; description?: string; start: string; end: string }
-): Promise<void> {
-  const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: ev.summary,
-      location: ev.location ?? null,
-      description: ev.description,
-      start: { dateTime: ev.start },
-      end: { dateTime: ev.end },
-    }),
-  });
-  if (!r.ok) {
-    const d = await r.json().catch(() => ({}));
-    throw new Error(`google_update_event_failed: ${r.status} ${d.error?.message ?? ''}`.trim());
-  }
-}
 
 export type CalEvent = {
   start: string;
@@ -131,4 +90,91 @@ export async function listEvents(accessToken: string, timeMin: string, timeMax: 
         softBusy: e.transparency === 'transparent' || mine === 'needsAction' || mine === 'tentative',
       };
     });
+}
+
+export type EventInput = {
+  summary: string;
+  location?: string | null;
+  description?: string;
+  start: string;
+  end: string;
+  /** Guests by email. Google emails them the invite and every later change. */
+  attendees?: string[];
+};
+
+function eventBody(ev: EventInput) {
+  return {
+    summary: ev.summary,
+    location: ev.location ?? null,
+    description: ev.description,
+    start: { dateTime: ev.start },
+    end: { dateTime: ev.end },
+    ...(ev.attendees ? { attendees: ev.attendees.map((email) => ({ email })) } : {}),
+  };
+}
+
+// With guests, sendUpdates=all makes Google email them now and on every change.
+export async function createEvent(accessToken: string, ev: EventInput): Promise<string> {
+  const q = ev.attendees?.length ? '?sendUpdates=all' : '';
+  const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events${q}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(eventBody(ev)),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`google_create_event_failed: ${d.error?.message ?? r.status}`);
+  return d.id as string;
+}
+
+// Moves or fills in an existing event; guests get Google's "Updated invitation".
+export async function updateEvent(accessToken: string, eventId: string, ev: EventInput): Promise<void> {
+  const q = ev.attendees?.length ? '?sendUpdates=all' : '';
+  const r = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}${q}`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventBody(ev)),
+    }
+  );
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(`google_update_event_failed: ${r.status} ${d.error?.message ?? ''}`.trim());
+  }
+}
+
+export type RawEvent = {
+  id: string;
+  summary: string;
+  location: string;
+  description: string;
+  start: string;
+  end: string;
+};
+
+// Events with the fields needed to recognise a restaurant booking.
+export async function listRawEvents(accessToken: string, timeMin: string, timeMax: string): Promise<RawEvent[]> {
+  const q = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '100',
+    fields: 'items(id,summary,location,description,start,end,status)',
+  });
+  const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`google_events_failed: ${d.error?.message ?? r.status}`);
+  return ((d.items ?? []) as any[])
+    .filter((e) => e.status !== 'cancelled' && e.start?.dateTime)
+    .map((e) => ({
+      id: e.id,
+      summary: e.summary ?? '',
+      location: e.location ?? '',
+      description: e.description ?? '',
+      start: e.start.dateTime,
+      end: e.end?.dateTime ?? e.start.dateTime,
+    }));
 }

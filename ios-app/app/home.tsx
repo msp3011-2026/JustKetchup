@@ -22,6 +22,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [firstName, setFirstName] = useState('');
+  const [toBook, setToBook] = useState<{ id: string; name: string; start: string }[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +38,21 @@ export default function Home() {
       if (profile?.name) setFirstName(String(profile.name).split(' ')[0]);
 
       setContacts(await listContacts());
+
+      // Friends who picked a time and are waiting for you to book.
+      const { data: waiting } = await supabase
+        .from('invites')
+        .select('id, chosen_slot, contacts(name)')
+        .eq('user_id', user.id)
+        .eq('status', 'booking')
+        .order('responded_at', { ascending: true });
+      setToBook(
+        (waiting ?? []).map((w: any) => ({
+          id: w.id,
+          name: String((Array.isArray(w.contacts) ? w.contacts[0]?.name : w.contacts?.name) ?? '').split(' ')[0],
+          start: w.chosen_slot?.start,
+        }))
+      );
     } catch (e: any) {
       Alert.alert('Could not load', e?.message ?? String(e));
     } finally {
@@ -90,6 +106,32 @@ export default function Home() {
           <Text style={styles.signOut}>Sign out</Text>
         </TouchableOpacity>
       </View>
+
+      {toBook.length > 0 && (
+        <View style={styles.toBook}>
+          {toBook.map((b) => (
+            <TouchableOpacity
+              key={b.id}
+              style={styles.toBookCard}
+              onPress={() => router.push(`/booking/${b.id}`)}
+              activeOpacity={0.85}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toBookKicker}>Ready to book</Text>
+                <Text style={styles.toBookText}>
+                  {b.name} picked{' '}
+                  {b.start
+                    ? new Date(b.start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+                      ' at ' +
+                      new Date(b.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                    : 'a time'}
+                </Text>
+              </View>
+              <Text style={styles.toBookGo}>Book ›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       <FlatList
         data={contacts}
@@ -184,6 +226,11 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 16, fontWeight: '600', color: colors.text },
   cardDue: { fontSize: 13, color: colors.muted, marginTop: 2 },
   cardDueUrgent: { color: colors.primary, fontWeight: '600' },
+  toBook: { paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
+  toBookCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEDD5', borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: '#FDBA74' },
+  toBookKicker: { fontSize: 12, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  toBookText: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 2 },
+  toBookGo: { fontSize: 16, fontWeight: '700', color: colors.primary },
   ketchup: {
     backgroundColor: colors.primary,
     borderRadius: 999,

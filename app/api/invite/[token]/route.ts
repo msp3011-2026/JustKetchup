@@ -8,7 +8,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
 
   const { data: invite, error } = await supabaseAdmin
     .from('invites')
-    .select('id, token, status, slots, chosen_slot, chosen_place_id, expires_at, user_id, contact_id, friend_busy')
+    .select('id, token, status, slots, chosen_slot, chosen_place_id, expires_at, user_id, contact_id, friend_busy, shortlist')
     .eq('token', token)
     .maybeSingle();
 
@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
   const [{ data: profile }, { data: cityHoods }] = await Promise.all([
     supabaseAdmin
       .from('contact_profiles')
-      .select('neighborhood_id, dietary, cuisines')
+      .select('neighborhood_id, dietary, cuisines, email')
       .eq('contact_id', invite.contact_id)
       .maybeSingle(),
     supabaseAdmin.from('neighborhoods').select('id, name').eq('city', city).order('name'),
@@ -79,6 +79,11 @@ export async function GET(_req: Request, { params }: { params: { token: string }
   return NextResponse.json({
     status: invite.status,
     chosen,
+    // While the inviter is booking: the time picked and the places being tried.
+    pending:
+      invite.status === 'booking'
+        ? { slot: invite.chosen_slot, shortlist: invite.shortlist ?? [] }
+        : null,
     // Which offered times clash with the friend's Google Calendar, if they checked.
     friendCalendar: invite.friend_busy ?? null,
     inviterName: (inviter?.name ?? 'Your friend').split(' ')[0],
