@@ -79,7 +79,7 @@ export default function Info() {
           <Text style={styles.step}>Step 1 of 3</Text>
           <Text style={styles.title}>A little about you</Text>
           <Text style={styles.subtitle}>
-            We'll text you when it's time to reconnect with someone.
+            We'll send you a notification when it's time to reconnect with someone.
           </Text>
 
           <View style={styles.field}>
