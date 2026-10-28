@@ -30,7 +30,7 @@ function fmt(iso: string) {
 
 // Short and warm: it is sent from Manasi's own WhatsApp, in her voice.
 function draftMessage(firstName: string, url: string) {
-  return `Hey ${firstName}! How have you been? It's been way too long, I'd love to catch up. Pick a time and a spot that works for you here:\n\n${url}`;
+  return `Hey ${firstName}! How have you been? It's been way too long, I'd love to catch up. I'm using JustKetchup to make the logistics easier, so just pick a time and a spot that works for you here:\n\n${url}`;
 }
 
 function whatsappUrl(phoneE164: string, text: string) {
