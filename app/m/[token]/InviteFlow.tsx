@@ -295,7 +295,7 @@ export default function InviteFlow({ token }: { token: string }) {
             );
           })}
           {err && <p style={s.error}>{err}</p>}
-          <p style={s.fine}>None of these work? Just reply to {inviterName}&apos;s text.</p>
+          <p style={s.fine}>None of these work? Let {inviterName} know on WhatsApp and you two can find another time.</p>
         </>
       )}
 

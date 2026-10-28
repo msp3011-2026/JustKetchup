@@ -17,6 +17,21 @@ import { deleteContact, getContact, updateContact } from '../../lib/contacts';
 import { normalizePhone, type TierValue } from '../../lib/tiers';
 import TierPicker from '../../components/TierPicker';
 import { colors, spacing } from '../../lib/theme';
+import { supabase } from '../../lib/supabase';
+
+type LatestInvite = { status: string; chosen_slot: { start: string } | null; expires_at: string | null };
+
+function inviteLine(inv: LatestInvite, first: string): string | null {
+  if (inv.status === 'confirmed' && inv.chosen_slot) {
+    const d = new Date(inv.chosen_slot.start);
+    if (d.getTime() < Date.now()) return null;
+    return `You're meeting ${first} on ${d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`;
+  }
+  if (inv.status === 'sent' && (!inv.expires_at || new Date(inv.expires_at) > new Date())) {
+    return `Waiting on ${first} to pick a time and place.`;
+  }
+  return null;
+}
 
 export default function EditContact() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,6 +43,7 @@ export default function EditContact() {
   const [phone, setPhone] = useState('');
   const [tier, setTier] = useState<TierValue>('friendly');
   const [nextNudge, setNextNudge] = useState<string | null>(null);
+  const [latest, setLatest] = useState<LatestInvite | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +60,14 @@ export default function EditContact() {
         setPhone(c.phone);
         setTier((c.tier as TierValue) ?? 'friendly');
         setNextNudge(c.next_nudge_date);
+        const { data: inv } = await supabase
+          .from('invites')
+          .select('status, chosen_slot, expires_at')
+          .eq('contact_id', String(id))
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!cancelled) setLatest((inv as LatestInvite) ?? null);
       } catch (e: any) {
         Alert.alert('Could not load', e?.message ?? String(e));
       } finally {
@@ -105,6 +129,20 @@ export default function EditContact() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          {latest && inviteLine(latest, name.split(' ')[0]) && (
+            <View style={styles.status}>
+              <Text style={styles.statusText}>{inviteLine(latest, name.split(' ')[0])}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.button, styles.ketchupButton]}
+            onPress={() => router.push(`/invite/${id}`)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.buttonText}>Ketchup with {name.split(' ')[0] || 'them'}</Text>
+          </TouchableOpacity>
+
           <View style={styles.field}>
             <Text style={styles.label}>Name</Text>
             <TextInput
@@ -174,6 +212,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   meta: { fontSize: 13, color: colors.muted, marginBottom: spacing.lg },
+  status: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: spacing.md, marginBottom: spacing.md },
+  statusText: { fontSize: 15, color: colors.text },
+  ketchupButton: { marginBottom: spacing.xl },
   button: {
     backgroundColor: colors.primary,
     paddingVertical: 16,

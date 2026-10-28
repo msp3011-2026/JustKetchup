@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/justketchup/supabaseAdmin';
+import { accessTokenForUser, createEvent } from '@/lib/justketchup/google';
+
+const TIER_DAYS: Record<string, number> = { warm: 30, friendly: 90, keep_warm: 180 };
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +47,51 @@ export async function POST(req: Request, { params }: { params: { token: string }
     .select('name')
     .eq('id', invite.user_id)
     .maybeSingle();
+
+  // Follow-ups. Each is best-effort: the confirmation above already succeeded,
+  // and Alan must not see an error because the inviter's calendar hiccupped.
+  // Failures are logged so they show up in Vercel's runtime logs.
+  const [{ data: contact }, { data: venue }] = await Promise.all([
+    supabaseAdmin.from('contacts').select('name, tier').eq('id', invite.contact_id).maybeSingle(),
+    supabaseAdmin.from('venue_cache').select('name, address, maps_uri').eq('place_id', body.placeId).maybeSingle(),
+  ]);
+
+  // 1. Put the meetup in the inviter's Google Calendar, whether or not they open the app.
+  try {
+    const accessToken = await accessTokenForUser(invite.user_id);
+    if (accessToken) {
+      const start = match.start as string;
+      const end = (match.end as string | undefined) ?? new Date(new Date(start).getTime() + 90 * 60000).toISOString();
+      const eventId = await createEvent(accessToken, {
+        summary: `Ketchup with ${contact?.name ?? 'a friend'}`,
+        location: [venue?.name, venue?.address].filter(Boolean).join(', ') || undefined,
+        description: venue?.maps_uri ? `Directions: ${venue.maps_uri}\n\nBooked with JustKetchup` : 'Booked with JustKetchup',
+        start,
+        end,
+      });
+      await supabaseAdmin.from('invites').update({ calendar_event_id: eventId }).eq('id', invite.id);
+    } else {
+      console.warn('[confirm] inviter has no Google Calendar connection', invite.user_id);
+    }
+  } catch (e: any) {
+    console.error('[confirm] calendar event failed', e?.message ?? e);
+  }
+
+  // 2. Restart the nudge clock from the meetup date, by the contact's frequency.
+  try {
+    const days = TIER_DAYS[contact?.tier ?? 'friendly'] ?? 90;
+    const meetDate = new Date(match.start as string);
+    const next = new Date(meetDate.getTime() + days * 86400000);
+    await supabaseAdmin
+      .from('contacts')
+      .update({
+        last_interaction_date: meetDate.toISOString().slice(0, 10),
+        next_nudge_date: next.toISOString().slice(0, 10),
+      })
+      .eq('id', invite.contact_id);
+  } catch (e: any) {
+    console.error('[confirm] nudge reset failed', e?.message ?? e);
+  }
 
   return NextResponse.json({
     ok: true,

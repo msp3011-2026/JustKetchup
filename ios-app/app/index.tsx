@@ -9,8 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-import { supabase } from '../lib/supabase';
+import { signInWithGoogle } from '../lib/googleAuth';
 import { colors, spacing } from '../lib/theme';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -18,43 +17,10 @@ WebBrowser.maybeCompleteAuthSession();
 export default function Login() {
   const [loading, setLoading] = useState(false);
 
-  async function signInWithGoogle() {
+  async function handleSignIn() {
     setLoading(true);
     try {
-      // Resolves to justketchup://auth-callback in a build, and to the Expo Go
-      // proxy URL while developing. Both must be in Supabase's redirect list.
-      const redirectTo = Linking.createURL('auth-callback');
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo, skipBrowserRedirect: true },
-      });
-      if (error) throw error;
-      if (!data?.url) throw new Error('Supabase did not return a sign-in URL.');
-
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-      if (result.type !== 'success') return; // user cancelled
-
-      const [, fragment] = result.url.split('#');
-      const [, query] = result.url.split('?');
-      const params = new URLSearchParams(fragment ?? query ?? '');
-
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      const code = params.get('code');
-
-      if (accessToken && refreshToken) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (sessionError) throw sessionError;
-      } else if (code) {
-        const { error: codeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (codeError) throw codeError;
-      } else {
-        throw new Error('Google did not return a session. Check your Supabase redirect URLs.');
-      }
+      await signInWithGoogle();
     } catch (e: any) {
       Alert.alert('Sign in failed', e?.message ?? String(e));
     } finally {
@@ -74,7 +40,7 @@ export default function Login() {
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={signInWithGoogle}
+          onPress={handleSignIn}
           disabled={loading}
           activeOpacity={0.85}
         >
