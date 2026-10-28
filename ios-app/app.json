@@ -39,11 +39,8 @@
       ]
     ],
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "00c97e1f-d843-4ed3-a210-f762b0476a6d"
-      }
+      "router": {}
     },
-    "owner": "helloagain"
+    "owner": "msp3011"
   }
 }
