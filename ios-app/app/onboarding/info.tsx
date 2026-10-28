@@ -61,7 +61,7 @@ export default function Info() {
       );
       if (error) throw error;
 
-      router.push('/onboarding/contacts');
+      router.push('/onboarding/places');
     } catch (e: any) {
       Alert.alert('Could not save', e?.message ?? String(e));
     } finally {

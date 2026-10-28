@@ -20,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
   }
 
   const [{ data: inviter }, { data: contact }] = await Promise.all([
-    supabaseAdmin.from('users').select('name, city').eq('id', invite.user_id).maybeSingle(),
+    supabaseAdmin.from('users').select('name, city, meet_neighborhood_ids').eq('id', invite.user_id).maybeSingle(),
     supabaseAdmin.from('contacts').select('name').eq('id', invite.contact_id).maybeSingle(),
   ]);
 
@@ -40,6 +40,12 @@ export async function GET(_req: Request, { params }: { params: { token: string }
   // a single-city app for now, so falling back to every neighborhood is both correct
   // and far better than showing Sarah an empty dropdown.
   let neighborhoods = cityHoods ?? [];
+  // The inviter's chosen meeting neighborhoods, when they've set them.
+  const meetIds: string[] = (inviter as any)?.meet_neighborhood_ids ?? [];
+  if (meetIds.length > 0) {
+    const { data: meet } = await supabaseAdmin.from('neighborhoods').select('id, name').in('id', meetIds).order('name');
+    if (meet && meet.length > 0) neighborhoods = meet;
+  }
   if (neighborhoods.length === 0) {
     const { data: allHoods } = await supabaseAdmin
       .from('neighborhoods')

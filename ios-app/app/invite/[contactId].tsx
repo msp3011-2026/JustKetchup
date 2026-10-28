@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getContact, type Contact } from '../../lib/contacts';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { signInWithGoogle } from '../../lib/googleAuth';
 import { colors, spacing } from '../../lib/theme';
 import WeekView, { type CalEvent, type Slot } from '../../components/WeekView';
@@ -57,6 +58,7 @@ export default function NewInvite() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [firstDay, setFirstDay] = useState<string | undefined>(undefined);
+  const [hasMeetPlaces, setHasMeetPlaces] = useState(true);
   const [friend, setFriend] = useState<{ usesApp: boolean; calendarChecked: boolean }>({ usesApp: false, calendarChecked: false });
   const [picked, setPicked] = useState<string[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -82,6 +84,15 @@ export default function NewInvite() {
         }>(`/api/me/slots?contactId=${encodeURIComponent(String(contactId))}`),
       ]);
       setContact(c);
+      {
+        const { data: u } = await supabase.auth.getUser();
+        const { data: me } = await supabase
+          .from('users')
+          .select('meet_neighborhood_ids')
+          .eq('id', u.user?.id ?? '')
+          .maybeSingle();
+        setHasMeetPlaces(((me as any)?.meet_neighborhood_ids ?? []).length > 0);
+      }
       setSlots(s.slots ?? []);
       setEvents(s.events ?? []);
       setFirstDay(s.firstDay);
@@ -174,6 +185,17 @@ export default function NewInvite() {
             </Text>
             <TouchableOpacity onPress={connectCalendar}>
               <Text style={styles.link}>Connect Google Calendar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!hasMeetPlaces && (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>
+              Choose the neighborhoods you&apos;re happy to meet in. {first} picks one of them.
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/settings/places')}>
+              <Text style={styles.link}>Choose neighborhoods</Text>
             </TouchableOpacity>
           </View>
         )}

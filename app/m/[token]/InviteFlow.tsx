@@ -54,6 +54,16 @@ function fmtSlot(iso: string) {
   };
 }
 
+// "dinner", "lunch" or "brunch", from the meetup's local time.
+function meal(iso: string) {
+  const d = new Date(iso);
+  const h = d.getHours();
+  const weekend = d.getDay() === 0 || d.getDay() === 6;
+  if (h < 11) return 'breakfast';
+  if (h < 16) return weekend ? 'brunch' : 'lunch';
+  return 'dinner';
+}
+
 function icsFor(slot: Slot, placeName: string, withWhom: string) {
   const start = new Date(slot.start);
   const end = slot.end ? new Date(slot.end) : new Date(start.getTime() + 90 * 60000);
@@ -70,7 +80,7 @@ function icsFor(slot: Slot, placeName: string, withWhom: string) {
 export default function InviteFlow({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [step, setStep] = useState<'hello' | 'details' | 'time' | 'place' | 'waiting' | 'done'>('hello');
+  const [step, setStep] = useState<'hello' | 'details' | 'time' | 'place' | 'email' | 'waiting' | 'done'>('hello');
 
   const [inviterName, setInviterName] = useState('');
   const [contactName, setContactName] = useState('');
@@ -132,7 +142,10 @@ export default function InviteFlow({ token }: { token: string }) {
         const hasProfile = Boolean(d.savedProfile?.neighborhood_id);
         if (hasProfile) {
           setKnown(true);
-          setHoodId(d.savedProfile.neighborhood_id);
+          // Only keep their last choice if it's still one of the inviter's areas.
+          if ((d.neighborhoods ?? []).some((h: Hood) => h.id === d.savedProfile.neighborhood_id)) {
+            setHoodId(d.savedProfile.neighborhood_id);
+          }
           setDietary(d.savedProfile.dietary ?? []);
           setCuisines(d.savedProfile.cuisines ?? []);
         }
@@ -163,7 +176,36 @@ export default function InviteFlow({ token }: { token: string }) {
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
-  // Last step: send time + food + email. The inviter books from the shortlist.
+  // Where + food: find places in that neighborhood open at that time.
+  async function findPlaces() {
+    if (!slot) return setStep('time');
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch(`/api/invite/${token}/shortlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot, neighborhoodId: hoodId, dietary, cuisines }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setErr(
+          d.error === 'no_places'
+            ? 'Nothing there matched everything at that time. Try fewer food filters, another neighborhood or another time.'
+            : d.detail ? `${d.error}: ${d.detail}` : (d.error ?? `HTTP ${r.status}`)
+        );
+        return;
+      }
+      setShortlist(d.shortlist ?? []);
+      setStep('email');
+    } catch (e: any) {
+      setErr(String(e?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Last step: the email. The inviter books from the shortlist.
   async function submitRequest() {
     if (!slot) return setStep('time');
     setBusy(true);
@@ -172,7 +214,7 @@ export default function InviteFlow({ token }: { token: string }) {
       const r = await fetch(`/api/invite/${token}/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slot, neighborhoodId: hoodId, dietary, cuisines, email: email.trim() }),
+        body: JSON.stringify({ slot, email: email.trim() }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -286,14 +328,13 @@ export default function InviteFlow({ token }: { token: string }) {
               <button style={s.editLink} onClick={() => setStep('time')}>Change</button>
             </div>
           )}
-          <h2 style={s.h2}>Whereabouts are you these days?</h2>
-          <p style={s.body}>
-            So we can land on somewhere in the middle, instead of one of you trekking across town.
-          </p>
-          <select style={s.select} value={hoodId} onChange={(e) => setHoodId(e.target.value)}>
-            <option value="">Choose your neighborhood…</option>
-            {hoods.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-          </select>
+          <h2 style={s.h2}>Where should you two meet?</h2>
+          <p style={s.body}>{inviterName} is happy to meet in any of these. Pick the one that works for you.</p>
+          <div style={s.chips}>
+            {hoods.map((h) => (
+              <Chip key={h.id} on={hoodId === h.id} onClick={() => setHoodId(h.id)}>{h.name}</Chip>
+            ))}
+          </div>
 
           <h3 style={s.h3}>Anything we should know about food?</h3>
           <div style={s.chips}>
@@ -314,25 +355,13 @@ export default function InviteFlow({ token }: { token: string }) {
             ))}
           </div>
 
-          <h3 style={s.h3}>Your email</h3>
-          <p style={s.fine2}>We need it to send you the reservation details.</p>
-          <input
-            style={s.input}
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
           {err && <p style={s.error}>{err}</p>}
           <button
-            style={{ ...s.btn, opacity: hoodId && emailOk && !busy ? 1 : 0.5 }}
-            disabled={!hoodId || !emailOk || busy}
-            onClick={submitRequest}
+            style={{ ...s.btn, opacity: hoodId && !busy ? 1 : 0.5 }}
+            disabled={!hoodId || busy}
+            onClick={findPlaces}
           >
-            {busy ? 'Finding places near you both…' : 'Find us a table'}
+            {busy ? 'Finding places…' : 'Next'}
           </button>
         </>
       )}
@@ -418,52 +447,96 @@ export default function InviteFlow({ token }: { token: string }) {
         </>
       )}
 
+      {step === 'email' && slot && (
+        <>
+          <h2 style={s.h2}>Where should we send the reservation?</h2>
+          <p style={s.body}>
+            {inviterName} will book a table at one of these for {fmtSlot(slot.start).day} at{' '}
+            {fmtSlot(slot.start).time}. We&apos;ll email you the reservation and a calendar invite, so it&apos;s
+            in your calendar with the address.
+          </p>
+          <PlaceList places={shortlist} />
+          <input
+            style={s.input}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          {err && <p style={s.error}>{err}</p>}
+          <button
+            style={{ ...s.btn, opacity: emailOk && !busy ? 1 : 0.5 }}
+            disabled={!emailOk || busy}
+            onClick={submitRequest}
+          >
+            {busy ? 'Confirming…' : 'Confirm'}
+          </button>
+          <button style={{ ...s.editLink, display: 'block', margin: '16px auto 0', fontSize: 14 }} onClick={() => setStep('details')}>
+            Back
+          </button>
+        </>
+      )}
+
       {step === 'waiting' && slot && (
         <>
-          <p style={s.kicker}>Almost there</p>
-          <h1 style={s.h1}>{inviterName} is booking a table near both of you.</h1>
-          <p style={s.body}>
-            {fmtSlot(slot.start).day} at {fmtSlot(slot.start).time}. A calendar invite is on its way
-            {email ? ` to ${email}` : ''}, and it will update with the restaurant once it&apos;s booked.
-          </p>
-          {shortlist.length > 0 && (
-            <>
-              <h3 style={s.h3}>It&apos;ll be one of these</h3>
-              {shortlist.map((p) => (
-                <div key={p.id} style={s.option}>
-                  <span style={s.optionMain}>{p.name}</span>
-                  <span style={s.optionSub}>
-                    ★ {p.rating} · {p.reviews.toLocaleString()} reviews
-                    {p.priceLevel && ` · ${PRICE_LABEL[p.priceLevel] ?? ''}`}
-                  </span>
-                  <span style={s.optionAddr}>{p.address}</span>
-                </div>
-              ))}
-            </>
-          )}
-          <button style={{ ...s.editLink, display: 'block', margin: '20px auto 0', fontSize: 14 }} onClick={() => setStep('time')}>
-            Change the time
+          <p style={s.kicker}>You&apos;re confirmed</p>
+          <h1 style={s.h1}>
+            You&apos;re meeting {inviterName} for {meal(slot.start)} on {fmtSlot(slot.start).day} at{' '}
+            {fmtSlot(slot.start).time}.
+          </h1>
+          <button style={{ ...s.editLink, fontSize: 14, margin: '0 0 20px' }} onClick={() => setStep('time')}>
+            Change my selection
           </button>
+          <p style={s.body}>
+            {inviterName} is booking a table at one of these. The reservation will come to
+            {email ? ` ${email}` : ' your email'}.
+          </p>
+          <PlaceList places={shortlist} />
         </>
       )}
 
       {step === 'done' && slot && place && (
         <>
-          <p style={s.kicker}>You&apos;re all set</p>
+          <p style={s.kicker}>You&apos;re confirmed</p>
           <h1 style={s.h1}>
-            {place.name}, {fmtSlot(slot.start).day}.
+            You&apos;re meeting {inviterName} for {meal(slot.start)} at {place.name} on {fmtSlot(slot.start).day} at{' '}
+            {fmtSlot(slot.start).time}.
           </h1>
-          <p style={s.body}>{fmtSlot(slot.start).time}</p>
-          <p style={s.muted}>{place.address}</p>
-          <button style={s.btn} onClick={downloadIcs}>Add to my calendar</button>
+          {place.address && <p style={s.muted}>{place.address}</p>}
+          <p style={s.body}>The table is booked. The details are in your calendar invite.</p>
           {place.mapsUri && (
-            <a style={s.btnGhost} href={place.mapsUri} target="_blank" rel="noreferrer">
-              View on Google Maps
+            <a
+              style={{ ...s.btn, display: 'block', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}
+              href={place.mapsUri}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Directions
             </a>
           )}
         </>
       )}
     </Shell>
+  );
+}
+
+function PlaceList({ places }: { places: Place[] }) {
+  if (places.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {places.map((p) => (
+        <div key={p.id} style={s.option}>
+          <span style={s.optionMain}>{p.name}</span>
+          <span style={s.optionSub}>
+            ★ {p.rating} · {p.reviews.toLocaleString()} reviews
+            {p.priceLevel && ` · ${PRICE_LABEL[p.priceLevel] ?? ''}`}
+          </span>
+          <span style={s.optionAddr}>{p.address}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 

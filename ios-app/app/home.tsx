@@ -102,9 +102,14 @@ export default function Home() {
           <Text style={styles.greeting}>Hi{firstName ? ` ${firstName}` : ''} 👋</Text>
           <Text style={styles.subtitle}>Here's who you're staying close to.</Text>
         </View>
-        <TouchableOpacity onPress={handleSignOut} hitSlop={12}>
-          <Text style={styles.signOut}>Sign out</Text>
-        </TouchableOpacity>
+        <View style={{ alignItems: 'flex-end', gap: 10 }}>
+          <TouchableOpacity onPress={() => router.push('/settings/places')} hitSlop={12}>
+            <Text style={styles.signOut}>Where I meet</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSignOut} hitSlop={12}>
+            <Text style={styles.signOut}>Sign out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {toBook.length > 0 && (
