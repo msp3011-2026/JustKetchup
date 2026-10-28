@@ -19,7 +19,7 @@ first if it's already open — it caches old URLs and shows stale errors.
 
 Stop the server with `Ctrl` + `C`.
 
-`start.sh` handles the rest: it checks you're on Node 20, reinstalls `fsevents` if it
+`start.sh` handles the rest: it checks you're on Node 22, reinstalls `fsevents` if it
 went missing, raises the open-file limit, and loads `.env`.
 
 - `./start.sh --lan` — local Wi-Fi. **Use this.** Faster, no login needed.
@@ -69,7 +69,7 @@ The Expo project ID (`00c97e1f-...`) is unchanged, so your Expo account still ow
 npm install fsevents --ignore-scripts
 ```
 
-**Wrong Node version** — `start.sh` warns you. Fix with `nvm use 20`.
+**Wrong Node version** — `start.sh` warns you. Fix with `nvm install 22 && nvm use 22`.
 
 **"Project is incompatible with this version of Expo Go"** — Expo Go updated to a newer
 SDK than the project. The project is on SDK 54.
@@ -83,7 +83,7 @@ SDK than the project. The project is on SDK 54.
 ```
 justketchup-ios/
 ├── .env                      Supabase keys (never commit)
-├── .nvmrc                    pins Node 20
+├── .nvmrc                    pins Node 22
 ├── start.sh                  one-command start
 ├── app.json                  Expo config
 ├── lib/

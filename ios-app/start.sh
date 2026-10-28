@@ -9,9 +9,9 @@ cd "$(dirname "$0")" || exit 1
 #    Node 24 causes native packages (fsevents) to be skipped and produces
 #    module-format errors deep in the dependency tree.
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null)"
-if [ "$NODE_MAJOR" != "20" ]; then
-  echo "WARNING: running Node $NODE_MAJOR. This project expects Node 20."
-  echo "         Fix with:  nvm use 20"
+if [ "$NODE_MAJOR" != "22" ]; then
+  echo "WARNING: running Node $NODE_MAJOR. This project expects Node 22 (Expo SDK 58 needs 22.13+)."
+  echo "         Fix with:  nvm install 22 && nvm use 22 && nvm alias default 22"
   echo
 fi
 

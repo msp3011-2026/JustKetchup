@@ -6,11 +6,9 @@
     "orientation": "portrait",
     "scheme": "justketchup",
     "userInterfaceStyle": "light",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#FFF7ED"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.msp3011.justketchup",
@@ -20,7 +18,9 @@
     },
     "android": {
       "package": "com.msp3011.justketchup",
-      "permissions": ["READ_CONTACTS"]
+      "permissions": [
+        "READ_CONTACTS"
+      ]
     },
     "plugins": [
       "expo-router",

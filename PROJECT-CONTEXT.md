@@ -112,12 +112,12 @@ Free, instant, no carrier registration.
 
 | Thing | Version | Notes |
 |---|---|---|
-| Node | **20.20.2** via nvm | Pinned by `.nvmrc`. `nvm alias default 20` set. **Node 24 breaks everything** — see gotchas. |
-| Expo SDK | **54.0.36** | Must match Expo Go on the phone; Apple only allows the latest Expo Go, so you cannot downgrade. |
+| Node | **22** via nvm | Pinned by `.nvmrc`. Expo SDK 58 requires Node 22.13+ (was 20 on SDK 54). |
+| Expo SDK | **58.0.20** (upgraded 28 Oct when Expo Go moved to 58; RN 0.88, React 19.3) | Must match Expo Go on the phone; Apple only allows the latest Expo Go, so you cannot downgrade. |
 | React / React DOM | 19.1.0 / 19.1.0 | `react-dom` must be pinned or npm grabs 19.2.x and ERESOLVE fails. |
 | React Native | 0.81.5 | |
 | expo-router | 6.0.24 | |
-| babel-preset-expo | 54.0.12 | Must be an explicit devDependency in SDK 54. |
+| babel-preset-expo | ~58.0.0 | Explicit devDependency. |
 | Metro | 0.83.3 | |
 | Next.js (web) | 14.2.15 | TypeScript target is **es5** — see gotchas. |
 | Mac | Darwin 25.5.0, arm64 | Xcode at `/Applications/Xcode.app/Contents/Developer` |
@@ -272,7 +272,7 @@ cd ~/Documents/justketchup-ios      (or wherever this folder lives)
 Scan the QR with the iPhone **Camera** app. Force-quit Expo Go first — it caches dead
 URLs and shows stale errors. `Ctrl` + `C` to stop.
 
-`start.sh` handles the rest: warns if Node isn't 20, reinstalls `fsevents` if missing,
+`start.sh` handles the rest: warns if Node isn't 22, reinstalls `fsevents` if missing,
 raises the open-file limit, loads `.env`.
 
 - `./start.sh --lan` — local Wi-Fi. **Preferred.** Faster, no Expo login.
@@ -287,7 +287,7 @@ then `npm install fsevents --ignore-scripts`.
 
 **Check `node -v` before diagnosing anything.** Node 24 with Expo produced
 `tslib.__assign is not a function` inside @expo/cli and made npm silently skip native
-packages. Node 20 fixed all of it.
+packages. Node 20 fixed it on SDK 54; SDK 58 needs Node 22 — always match Node to the SDK's `engines`.
 
 **`EMFILE: too many open files` means `fsevents` is missing, not that `ulimit` is low.**
 Metro picks a watcher: Watchman > FSEventsWatcher (needs the `fsevents` npm package) >
